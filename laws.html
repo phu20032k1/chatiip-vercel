@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<script>
+(function () {
+  const STORAGE_KEY = "chatiip_app_version";
+  const FALLBACK_VERSION = "20260111140700";
+  const u = new URL(window.location.href);
+  let v = u.searchParams.get("v") || "";
+  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+  if (!v) v = FALLBACK_VERSION;
+  window.CHATIIP_VERSION = v;
+
+  window.__CHATIIP_ASSET = function (path) {
+    try {
+      if (!path) return path;
+      if (/^https?:\/\//i.test(path)) return path;
+      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+    } catch (e) {
+      return path;
+    }
+  };
+
+  fetch("app-version.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const latest = (j && j.version) ? String(j.version) : "";
+      if (!latest) return;
+      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("v") !== latest) {
+        url.searchParams.set("v", latest);
+        window.location.replace(url.toString());
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+<title>Văn bản pháp luật | ChatIIP</title>
+
+  <!-- BASE SEO -->
+  <meta name="description" content="Tra cứu văn bản pháp luật: tìm kiếm, phân loại, lược đồ và tải về." />
+  <meta name="author" content="ChatIIP" />
+
+  <!-- OpenGraph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Văn bản pháp luật | ChatIIP" />
+  <meta property="og:description" content="Tra cứu văn bản pháp luật: tìm kiếm, phân loại, lược đồ và tải về." />
+  <meta property="og:image" content="https://chatiip.com/default-og.jpg" />
+  <meta property="og:url" content="https://chatiip.com/laws.html" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Văn bản pháp luật | ChatIIP" />
+  <meta name="twitter:description" content="Tra cứu văn bản pháp luật" />
+  <meta name="twitter:image" content="https://chatiip.com/default-og.jpg" />
+
+  <!-- CSS -->
+  <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+  <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('laws.css') + '\">');</script>
+
+  <!-- ICON -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+
+  <!-- JSON-LD (optional) -->
+  <script type="application/ld+json" id="lawsJsonLd"></script>
+
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="favicon.ico" />
+</head>
+
+<body data-page="laws">
+
+  <header class="laws-header">
+    <div class="laws-left">
+      <h1><i class="fa-solid fa-scale-balanced"></i> Văn bản pháp luật</h1>
+      <p>Tra cứu · Lược đồ · Tải về</p>
+    </div>
+
+    <div class="laws-actions">
+      <div class="laws-search">
+        <i class="fa fa-search"></i>
+        <input id="searchInput" type="text" placeholder="Tìm theo tiêu đề / số hiệu / nội dung..." />
+      </div>
+
+      <select id="statusFilter" class="laws-filter" title="Tình trạng">
+        <option value="">Tình trạng: Tất cả</option>
+        <option value="Còn hiệu lực">Còn hiệu lực</option>
+        <option value="Hết hiệu lực">Hết hiệu lực</option>
+        <option value="Không xác định">Không xác định</option>
+      </select>
+
+      <select id="minorFilter" class="laws-filter" title="Mục con">
+        <option value="">Mục con: Tất cả</option>
+      </select>
+
+      <div class="laws-date">
+        <div class="date-item" title="Từ ngày ban hành">
+          <label for="fromDate">Từ</label>
+          <input id="fromDate" type="date" />
+        </div>
+        <div class="date-item" title="Đến ngày ban hành">
+          <label for="toDate">Đến</label>
+          <input id="toDate" type="date" />
+        </div>
+      </div>
+
+      <button id="clearFiltersBtn" class="laws-btn secondary" type="button" title="Xoá bộ lọc">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+
+      <a href="news.html" class="laws-btn link" title="Tin tức"><i class="fa-regular fa-newspaper"></i></a>
+      <a href="index.html" class="laws-btn link" title="Chat">← Chat</a>
+    </div>
+  </header>
+
+  <div class="laws-container">
+
+    <aside class="laws-sidebar">
+      <div class="sidebar-title">Phân loại</div>
+      <div class="sidebar-hint">Chọn <b>mục lớn</b> để lọc nhanh.</div>
+
+      <div id="categoryList" class="category-list">
+        <!-- JS render -->
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-small">Di chuột vào một văn bản để <b>xem trước</b>.</div>
+      </div>
+    </aside>
+
+    <main class="laws-main">
+      <div class="laws-topbar">
+        <div id="resultStats" class="result-stats">Đang tải...</div>
+        <div class="topbar-right">
+          <button id="refreshBtn" class="laws-btn small" type="button"><i class="fa-solid fa-arrows-rotate"></i> Làm mới</button>
+        </div>
+      </div>
+
+      <section id="docsList" class="docs-list">
+        <!-- JS render -->
+      </section>
+
+      <div id="loadMoreWrap" class="load-more-wrap" style="display:none;">
+        <button id="loadMoreBtn" class="laws-btn primary" type="button">Tải thêm</button>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="empty-icon">📄</div>
+        <div class="empty-title">Không tìm thấy văn bản phù hợp.</div>
+        <div class="empty-desc">Hãy thử đổi từ khoá hoặc bỏ bớt bộ lọc.</div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Tooltip (hover preview) -->
+  <div id="hoverTooltip" class="hover-tooltip" aria-hidden="true"></div>
+
+  <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('laws.js') + '\"><\/script>');</script>
+<script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
+</body>
+
+</html>

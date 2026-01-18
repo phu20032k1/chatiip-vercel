@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tin tức | ChatIIP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<script>
+(function () {
+  const STORAGE_KEY = "chatiip_app_version";
+  const FALLBACK_VERSION = "20260111140700";
+  const u = new URL(window.location.href);
+  let v = u.searchParams.get("v") || "";
+  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+  if (!v) v = FALLBACK_VERSION;
+  window.CHATIIP_VERSION = v;
+
+  window.__CHATIIP_ASSET = function (path) {
+    try {
+      if (!path) return path;
+      if (/^https?:\/\//i.test(path)) return path;
+      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+    } catch (e) {
+      return path;
+    }
+  };
+
+  fetch("app-version.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const latest = (j && j.version) ? String(j.version) : "";
+      if (!latest) return;
+      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("v") !== latest) {
+        url.searchParams.set("v", latest);
+        window.location.replace(url.toString());
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+<!-- BASE SEO -->
+    <meta name="description" content="Tin tức mới nhất từ ChatIIP - cập nhật nhanh, chính xác và đầy đủ.">
+    <meta name="author" content="ChatIIP">
+
+    <!-- OpenGraph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tin tức | ChatIIP">
+    <meta property="og:description" content="Tin tức mới nhất từ ChatIIP - cập nhật nhanh, chính xác và đầy đủ.">
+    <meta property="og:image" content="https://chatiip.com/default-og.jpg">
+    <meta property="og:url" content="https://chatiip.com/news.html">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tin tức | ChatIIP">
+    <meta name="twitter:description" content="Tin tức mới nhất từ ChatIIP">
+    <meta name="twitter:image" content="https://chatiip.com/default-og.jpg">
+
+    <!-- JSON-LD ItemList sẽ được news.js ghi nội dung -->
+    <script type="application/ld+json" id="newsJsonLd"></script>
+
+    <!-- CSS -->
+    <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+    <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('news.css') + '\">');</script>
+
+    <!-- ICON -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="favicon.ico" />
+</head>
+
+<body data-page="news">
+
+<header class="news-header">
+    <div class="news-left">
+        <h1>Tin tức</h1>
+        <p>Cập nhật nhanh – Chính xác – Đầy đủ</p>
+    </div>
+
+    <div class="news-actions">
+        <!-- Ô tìm kiếm -->
+        <div class="news-search">
+            <i class="fa fa-search"></i>
+            <input id="searchInput" type="text" placeholder="Tìm bài viết...">
+        </div>
+
+        <!-- Bộ lọc -->
+        <select id="categoryFilter" class="news-filter">
+            <option value="">Tất cả</option>
+            <option value="Tin tức">Tin tức</option>
+            <option value="Thông báo">Thông báo</option>
+            <option value="Hướng dẫn">Hướng dẫn</option>
+            <option value="Công nghệ">Công nghệ</option>
+            <option value="Khác">Khác</option>
+        </select>
+
+        <a href="laws.html" class="nav-btn" title="Tra cứu văn bản">⚖️ Văn bản</a>
+        <button class="back-btn" id="backBtn" type="button">← Quay lại</button>
+        <a href="index.html" class="nav-btn">💬 Chat</a>
+    </div>
+</header>
+
+
+<div class="news-container">
+    <!-- Bài nổi bật kiểu VNExpress -->
+    <section class="news-featured" id="featuredNews"></section>
+
+    <!-- Danh sách các bài còn lại -->
+    <section class="news-list" id="newsList"></section>
+</div>
+
+<script>document.write('<script src=\"' + window.__CHATIIP_ASSET('news.js') + '\"><\/script>');</script>
+
+<script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
+</body>
+</html>

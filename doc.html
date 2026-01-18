@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<script>
+(function () {
+  const STORAGE_KEY = "chatiip_app_version";
+  const FALLBACK_VERSION = "20260111140700";
+  const u = new URL(window.location.href);
+  let v = u.searchParams.get("v") || "";
+  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+  if (!v) v = FALLBACK_VERSION;
+  window.CHATIIP_VERSION = v;
+
+  window.__CHATIIP_ASSET = function (path) {
+    try {
+      if (!path) return path;
+      if (/^https?:\/\//i.test(path)) return path;
+      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+    } catch (e) {
+      return path;
+    }
+  };
+
+  fetch("app-version.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const latest = (j && j.version) ? String(j.version) : "";
+      if (!latest) return;
+      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("v") !== latest) {
+        url.searchParams.set("v", latest);
+        window.location.replace(url.toString());
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+<title>Văn bản | ChatIIP</title>
+
+  <!-- BASE SEO -->
+  <meta name="description" content="Chi tiết văn bản pháp luật: tóm tắt, nội dung, lược đồ, tải về." />
+  <meta name="author" content="ChatIIP" />
+
+  <!-- OG -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Văn bản | ChatIIP" id="ogTitle" />
+  <meta property="og:description" content="Chi tiết văn bản pháp luật" id="ogDescription" />
+  <meta property="og:image" content="https://chatiip.com/default-og.jpg" id="ogImage" />
+  <meta property="og:url" content="https://chatiip.com/doc.html" id="ogUrl" />
+
+  <!-- CSS -->
+  <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+  <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('doc.css') + '\">');</script>
+
+  <!-- ICON -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+
+  <script type="application/ld+json" id="docJsonLd"></script>
+
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="favicon.ico" />
+</head>
+
+<body data-page="doc">
+
+  <header class="doc-header">
+    <div class="doc-header-left">
+      <div class="doc-header-title">
+        <i class="fa-solid fa-scale-balanced"></i>
+        <span>Chi tiết văn bản</span>
+      </div>
+      <div class="doc-header-sub" id="docHeaderSub">Đang tải...</div>
+    </div>
+
+    <div class="doc-header-actions">
+      <a class="doc-btn" href="laws.html" title="Quay lại tra cứu"><i class="fa-solid fa-arrow-left"></i> Tra cứu</a>
+      <a class="doc-btn" href="news.html" title="Tin tức"><i class="fa-regular fa-newspaper"></i></a>
+      <a class="doc-btn" href="index.html" title="Chat">← Chat</a>
+    </div>
+  </header>
+
+  <div class="doc-container">
+
+    <aside class="doc-sidebar">
+      <div class="sidebar-title">Mục lục</div>
+      <div class="sidebar-hint">Nhấn để nhảy nhanh tới mục tương ứng.</div>
+
+      <div id="outlineTree" class="outline-tree">
+        <!-- JS render -->
+      </div>
+
+      <div id="outlineEmpty" class="outline-empty" style="display:none;">
+        <div class="empty-icon">🗂️</div>
+        <div class="empty-title">Chưa có lược đồ.</div>
+        <div class="empty-desc">Bạn có thể bổ sung nội dung text trong admin để tạo lược đồ.</div>
+      </div>
+    </aside>
+
+    <main class="doc-main">
+
+      <section class="doc-info" id="docInfo">
+        <div class="doc-title" id="docTitle">Đang tải...</div>
+
+        <div class="doc-meta" id="docMeta"></div>
+
+        <div class="doc-tags" id="docTags"></div>
+      </section>
+
+      <section class="doc-tabs">
+        <button class="tab-btn" data-tab="summary" id="tabBtnSummary"><i class="fa-regular fa-file-lines"></i> Tóm tắt</button>
+        <button class="tab-btn" data-tab="content" id="tabBtnContent"><i class="fa-regular fa-rectangle-list"></i> Nội dung</button>
+        <button class="tab-btn" data-tab="outline" id="tabBtnOutline"><i class="fa-solid fa-diagram-project"></i> Lược đồ</button>
+        <button class="tab-btn" data-tab="download" id="tabBtnDownload"><i class="fa-solid fa-download"></i> Tải về</button>
+      </section>
+
+      <section class="tab-panel" id="tabSummary">
+        <div class="panel-title">Trích yếu</div>
+        <div id="summaryBox" class="panel-box"></div>
+      </section>
+
+      <section class="tab-panel" id="tabContent">
+        <div class="panel-title">Nội dung</div>
+        <div id="contentBox" class="panel-box"></div>
+      </section>
+
+      <section class="tab-panel" id="tabOutline">
+        <div class="panel-title">Lược đồ</div>
+        <div id="outlineBox" class="panel-box"></div>
+      </section>
+
+      <section class="tab-panel" id="tabDownload">
+        <div class="panel-title">Tải về</div>
+        <div id="downloadBox" class="panel-box"></div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('doc.js') + '\"><\/script>');</script>
+<script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
+</body>
+
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<script>
+(function () {
+  const STORAGE_KEY = "chatiip_app_version";
+  const FALLBACK_VERSION = "20260111140700";
+  const u = new URL(window.location.href);
+  let v = u.searchParams.get("v") || "";
+  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+  if (!v) v = FALLBACK_VERSION;
+  window.CHATIIP_VERSION = v;
+
+  window.__CHATIIP_ASSET = function (path) {
+    try {
+      if (!path) return path;
+      if (/^https?:\/\//i.test(path)) return path;
+      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+    } catch (e) {
+      return path;
+    }
+  };
+
+  fetch("app-version.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const latest = (j && j.version) ? String(j.version) : "";
+      if (!latest) return;
+      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("v") !== latest) {
+        url.searchParams.set("v", latest);
+        window.location.replace(url.toString());
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+<!-- 🌟 SEO Dynamic -->
+  <title id="pageTitle">Chuyên mục | ChatIIP</title>
+  <meta id="metaDesc" name="description" content="Danh sách bài viết theo chuyên mục">
+  <meta id="metaKeywords" name="keywords" content="">
+  <link id="canonicalLink" rel="canonical" href="">
+
+  <!-- OG TAGS -->
+  <meta property="og:title" id="ogTitle" content="">
+  <meta property="og:description" id="ogDescription" content="">
+  <meta property="og:image" id="ogImage" content="https://chatiip.com/default-og.jpg">
+  <meta property="og:url" id="ogUrl" content="">
+
+  <!-- JSON-LD -->
+  <script type="application/ld+json" id="jsonLD"></script>
+
+  <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+
+  <style>
+    body { background: var(--bg) !important; color: var(--text) !important; padding:20px; font-family:system-ui; }
+    #catTitle { font-size:32px; font-weight:800; margin-bottom:20px; color: var(--title); }
+    .cat-item {
+      padding:14px 0;
+      border-bottom:1px solid var(--border);
+      cursor:pointer;
+    }
+    .cat-item-title { font-size:20px; font-weight:600; color: var(--title); }
+    .cat-item:hover .cat-item-title { color:#2563eb; }
+    .empty { color: var(--muted); padding:30px 0; }
+  </style>
+
+    <link rel="icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="favicon.ico" />
+</head>
+
+<body data-page="category">
+
+<h1 id="catTitle"></h1>
+<div id="catList"></div>
+
+<script>
+// ✅ Dùng API tương đối để chạy được trên Netlify (kết hợp _redirects)
+// Backend sẽ được proxy thông qua /api/*
+const API = "/api/news";
+const params = new URLSearchParams(window.location.search);
+const category = params.get("cat");
+
+// 🌟 Capitalize first letter
+function capitalize(str) {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// 🌟 Update SEO
+function updateSEO() {
+  const title = `Chuyên mục: ${capitalize(category)} | ChatIIP`;
+  const desc = `Danh sách bài viết thuộc chuyên mục ${capitalize(category)} trên ChatIIP.`;
+  const url = `https://chatiip.com/category.html?cat=${category}`;
+
+  document.title = title;
+  document.getElementById("metaDesc").setAttribute("content", desc);
+  document.getElementById("metaKeywords").setAttribute("content", category);
+
+  document.getElementById("canonicalLink").setAttribute("href", url);
+  document.getElementById("ogTitle").setAttribute("content", title);
+  document.getElementById("ogDescription").setAttribute("content", desc);
+  document.getElementById("ogUrl").setAttribute("content", url);
+
+  document.getElementById("jsonLD").textContent = JSON.stringify({
+    "@context":"https://schema.org",
+    "@type":"CollectionPage",
+    "name":title,
+    "description":desc,
+    "url":url
+  }, null, 2);
+
+  document.getElementById("catTitle").textContent = capitalize(category);
+}
+
+updateSEO();
+
+// 🌟 Load articles by category
+async function loadCat() {
+  if (!category) {
+    document.getElementById("catList").innerHTML = "<p class='empty'>❌ Thiếu chuyên mục.</p>";
+    return;
+  }
+  const res = await fetch(`${API}/category/${encodeURIComponent(category)}`);
+  const data = await res.json();
+  const box = document.getElementById("catList");
+
+  if (!data.length) {
+    box.innerHTML = "<p class='empty'>Chưa có bài viết nào trong chuyên mục này.</p>";
+    return;
+  }
+
+  data.forEach(n => {
+    const div = document.createElement("div");
+    div.className = "cat-item";
+    div.innerHTML = `
+      <div class="cat-item-title">${n.title}</div>
+      <div class="cat-item-desc">${n.subtitle || ""}</div>
+    `;
+    div.onclick = () => location.href=`article.html?slug=${n.slug}`;
+    box.appendChild(div);
+  });
+}
+
+loadCat();
+</script>
+
+<script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
+</body>
+</html>

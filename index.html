@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+(function () {
+  const STORAGE_KEY = "chatiip_app_version";
+  const FALLBACK_VERSION = "20260111140700";
+  const u = new URL(window.location.href);
+  let v = u.searchParams.get("v") || "";
+  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+  if (!v) v = FALLBACK_VERSION;
+  window.CHATIIP_VERSION = v;
+
+  window.__CHATIIP_ASSET = function (path) {
+    try {
+      if (!path) return path;
+      if (/^https?:\/\//i.test(path)) return path;
+      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+    } catch (e) {
+      return path;
+    }
+  };
+
+  fetch("app-version.json", { cache: "no-store" })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const latest = (j && j.version) ? String(j.version) : "";
+      if (!latest) return;
+      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("v") !== latest) {
+        url.searchParams.set("v", latest);
+        window.location.replace(url.toString());
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+    <meta name="keywords"
+        content="ChatIIP-Trợ lý AI bất động sản công nghiệp,việc làm,kế toán,bất động sản và doanh nghiệp">
+
+
+    <title>ChatIIP</title>
+
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" href="/iip.png">
+
+    <!-- iOS (iPhone, iPad) -->
+    <link rel="apple-touch-icon" href="/iip.png">
+
+
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <!-- Mapbox GL -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet" />
+
+    <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+
+    <link rel="canonical" href="https://chatiip.com" />
+    <!-- SPEED BOOST -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://luat-lao-dong.onrender.com">
+    <link rel="dns-prefetch" href="https://vietbaichatiip.onrender.com">
+
+    <meta http-equiv="Content-Language" content="vi">
+    <meta property="og:locale" content="vi_VN">
+    <meta property="article:publisher" content="https://facebook.com/">
+    <meta property="article:section" content="Tin tức">
+
+    <!-- BASE SEO -->
+    <meta name="description"
+        content="ChatIIP-Trợ lý AI bất động sản công nghiệp,việc làm,kế toán,bất động sản và doanh nghiệp">
+    <meta name="description" content="" id="metaDescription">
+    <meta name="author" content="ChatIIP">
+
+    <!-- GEO TAGS -->
+    <meta name="geo.region" content="VN-HN">
+    <meta name="geo.placename" content="Ha Noi">
+    <meta name="geo.position" content="21.0278;105.8342">
+    <meta name="ICBM" content="21.0278, 105.8342">
+
+    <!-- OPEN GRAPH (FACEBOOK, ZALO,...) -->
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="ChatIIP">
+    <meta property="og:title" content="" id="ogTitle">
+    <meta property="og:description"
+        content="ChatIIP-Trợ lý AI bất động sản công nghiệp,việc làm,kế toán,bất động sản và doanh nghiệp."
+        id="ogDescription">
+    <meta property="og:image" content="https://chatiip.com/default-og.jpg" id="ogImage">
+    <meta property="og:url" content="https://chatiip.com" id="ogUrl">
+
+    <!-- TWITTER CARD -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="" id="twitterTitle">
+    <meta name="twitter:description"
+        content="ChatIIP-Trợ lý AI bất động sản công nghiệp,việc làm,kế toán,bất động sản và doanh nghiệp."
+        id="twitterDescription">
+    <meta name="twitter:image" content="https://chatiip.com/default-og.jpg" id="twitterImage">
+
+    <script type="application/ld+json" id="seoJsonLd"></script>
+    <script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebSite",
+ "name": "ChatIIP",
+ "url": "https://chatiip.com",
+ "potentialAction": {
+   "@type": "SearchAction",
+   "target": "https://chatiip.com/?q={search_term_string}",
+   "query-input": "required name=search_term_string"
+ }
+}
+</script>
+
+
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9DLYZL4633"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        // Track cho 2 property cùng lúc
+        gtag('config', 'G-9DLYZL4633');
+        gtag('config', 'G-R5YNLSJQMZ');
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-9DLYZL4633');
+        gtag('config', 'G-R5YNLSJQMZ');    
+    </script>
+
+
+
+</head>
+
+<body data-page="chat">
+
+    <div class="app-shell">
+
+        <!-- LEFT RAIL (ChatGPT-style) -->
+        <nav class="rail" id="rail" aria-label="Thanh công cụ">
+            <button class="rail-btn" id="toggleSidebarBtn" type="button" title="Mở thanh bên" aria-label="Mở thanh bên">
+                <i class="fas fa-columns"></i>
+            </button>
+
+            <button class="rail-btn" id="newChatRailBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">
+                <i class="fas fa-pen-to-square"></i>
+            </button>
+
+            <button class="rail-btn" id="searchRailBtn" type="button" title="Tìm lịch sử" aria-label="Tìm lịch sử">
+                <i class="fas fa-magnifying-glass"></i>
+            </button>
+
+            <button class="rail-btn" id="newsRailBtn" type="button" title="Tin tức" aria-label="Tin tức">
+                <i class="fas fa-newspaper"></i>
+            </button>
+
+            <button class="rail-btn" id="lawsRailBtn" type="button" title="Văn bản pháp luật" aria-label="Văn bản pháp luật">
+                <i class="fas fa-scale-balanced"></i>
+            </button>
+
+            <div class="rail-spacer"></div>
+
+            <button class="rail-account" id="railAccountBtn" type="button" title="Tài khoản" aria-label="Tài khoản">
+                <div class="rail-avatar" id="railAvatar">U</div>
+            </button>
+        </nav>
+
+        <!-- SIDEBAR PANEL (toggle by rail button) -->
+        <aside class="sidebar-panel" id="sidebarPanel" aria-hidden="true">
+            <div class="sidebar-panel-header">
+                <div class="brand">
+                    <div class="brand-title">ChatIIP</div>
+                    <div class="brand-subtitle">Trợ lý AI</div>
+                </div>
+                <button class="sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Đóng thanh bên" title="Đóng">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-panel-actions">
+                <button class="sidebar-primary" id="newChatBtn" type="button">
+                    <i class="fas fa-plus"></i>
+                    <span>Đoạn chat mới</span>
+                </button>
+            </div>
+
+            <div class="sidebar-panel-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input id="historySearchInput" type="text" placeholder="Tìm trong lịch sử..." autocomplete="off" />
+            </div>
+
+            <div class="sidebar-panel-body">
+
+            <div class="sidebar-section sidebar-section-history">
+                <div class="sidebar-section-title">Lịch sử</div>
+                <div class="sidebar-history" id="chatHistoryList">
+                    <div class="sidebar-empty" id="historyEmpty">Đăng nhập để xem lịch sử chat.</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section sidebar-section-other">
+                <div class="sidebar-section-title">Khác</div>
+                <button class="sidebar-link" id="panelNewsBtn" type="button">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Tin tức</span>
+                </button>
+                <button class="sidebar-link" id="lawsBtn" type="button">
+                    <i class="fas fa-scale-balanced"></i>
+                    <span>Văn bản pháp luật</span>
+                </button>
+            </div>
+
+            </div>
+            <div class="sidebar-panel-footer">
+                <button class="sidebar-account-btn" id="sidebarAccountBtn" type="button" aria-label="Tài khoản & cài đặt">
+                    <div class="avatar" id="sidebarAccountAvatar">U</div>
+                    <div class="sidebar-account-meta">
+                        <div class="sidebar-account-name" id="sidebarAccountName">Tài khoản</div>
+                        <div class="sidebar-account-email" id="sidebarAccountEmail">Chưa đăng nhập</div>
+                    </div>
+                    <i class="fas fa-gear"></i>
+                </button>
+            </div>
+        </aside>
+
+        <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+        <!-- MAIN CONTAINER -->
+        <div class="main-container">
+
+        <!-- MOBILE TOP BAR (shown on phones; replaces the left rail) -->
+        <header class="mobile-topbar" id="mobileTopbar" aria-label="Thanh trên (di động)">
+            <button class="mobile-topbar-btn" id="mobileSidebarBtn" type="button" aria-label="Mở thanh bên" title="Mở thanh bên">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-topbar-title" id="mobileTopbarTitle">ChatIIP</div>
+
+            <div class="mobile-topbar-spacer"></div>
+
+            <button class="mobile-topbar-btn" id="mobileNewChatBtn" type="button" aria-label="Đoạn chat mới" title="Đoạn chat mới">
+                <i class="fas fa-pen-to-square"></i>
+            </button>
+        </header>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="welcome-message" id="welcomeMessage">
+                <h1 id="welcomeMessageText">Tôi có thể giúp gì cho bạn?</h1>
+            </div>
+        </div>
+
+        <div class="message-input-container centered" id="messageInputContainer">
+            <div class="message-input-wrapper">
+
+                <button class="input-button" id="fileButton">
+                    <i class="fas fa-plus"></i>
+                </button>
+
+                <textarea class="message-input" id="messageInput" placeholder="Nhập câu hỏi ở đây..."
+                    rows="1"></textarea>
+
+
+                <button class="input-button" id="voiceButton">
+                    <i class="fas fa-microphone"></i>
+                </button>
+
+                <button class="send-button" id="sendButton">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+
+                <input type="file" id="fileInput" multiple hidden>
+
+            </div>
+        </div>
+        </div>
+    </div>
+
+
+    <!-- FEEDBACK MODAL (DISLIKE) -->
+    <div class="feedback-overlay" id="feedbackOverlay" aria-hidden="true">
+        <div class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+            <button class="feedback-close" id="feedbackCloseBtn" aria-label="Đóng">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <h3 id="feedbackTitle">Chia sẻ thêm ý kiến của bạn</h3>
+
+            <div class="feedback-chips" id="feedbackChips">
+                <button class="chip" type="button"
+                    data-reason="Không đáp ứng được nhu cầu/ không giải thích chi tiết">Không đáp ứng được nhu cầu/
+                    không giải thích chi tiết</button>
+                <button class="chip" type="button" data-reason="Nội dung không đúng">Nội dung không đúng</button>
+                <button class="chip" type="button" data-reason="Không rõ ràng, cụ thể và khó hiểu">Không rõ ràng, cụ thể
+                    và khó hiểu</button>
+                <button class="chip" type="button" data-reason="Không đầy đủ thông tin">Không đầy đủ thông tin</button>
+            </div>
+
+            <label class="feedback-label" for="feedbackDetail">Cung cấp thêm thông tin</label>
+            <textarea id="feedbackDetail" class="feedback-textarea"
+                placeholder="Thông tin cụ thể về vấn đề của bạn"></textarea>
+
+            <button class="feedback-submit" id="feedbackSubmitBtn" type="button">Gửi</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT -->
+    <!-- Mapbox GL JS -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
+    <script>
+        // Mapbox access token (public)
+        mapboxgl.accessToken = 'pk.eyJ1IjoicGh1MjAwMzJrMSIsImEiOiJjbWs0b28wcTYwYWlqM2RvbHJyeXVyY2tqIn0.sEOs-ZNvPqEXsSiOVRBw1Q';
+    </script>
+
+    
+    <!-- Mermaid (flowchart) + Chart.js (chart) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('script.js') + '\"><\/script>');</script>
+
+    <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
+</body>
+
+</html>

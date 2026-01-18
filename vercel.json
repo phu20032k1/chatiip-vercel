@@ -1,0 +1,37 @@
+{
+  "rewrites": [
+    { "source": "/news", "destination": "/news.html" },
+    { "source": "/laws", "destination": "/laws.html" },
+    { "source": "/doc", "destination": "/doc.html" },
+    { "source": "/article", "destination": "/article.html" },
+    { "source": "/category", "destination": "/category.html" },
+    { "source": "/chat", "destination": "/index.html" },
+
+    { "source": "/api/auth/:path*", "destination": "https://chatbot-backend-fly.fly.dev/api/auth/:path*" },
+    { "source": "/api/:path*", "destination": "https://chatbot-backend-fly.fly.dev/api/:path*" },
+    { "source": "/admin/:path*", "destination": "https://chatbot-backend-fly.fly.dev/admin/:path*" },
+    { "source": "/uploads/:path*", "destination": "https://chatbot-backend-fly.fly.dev/uploads/:path*" },
+    { "source": "/rss.xml", "destination": "https://chatbot-backend-fly.fly.dev/rss.xml" },
+    { "source": "/sitemap.xml", "destination": "https://chatbot-backend-fly.fly.dev/sitemap.xml" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
+}
