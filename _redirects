@@ -1,0 +1,8 @@
+
+/admin/*  https://chatbot-backend-fly.fly.dev/admin/:splat  200!
+/api/*    https://chatbot-backend-fly.fly.dev/api/:splat    200!
+/api/auth/* https://chatbot-backend-fly.fly.dev/api/auth/:splat 200!
+/news/*   https://chatbot-backend-fly.fly.dev/news/:splat   200!
+/uploads/* https://chatbot-backend-fly.fly.dev/uploads/:splat 200!
+/rss.xml  https://chatbot-backend-fly.fly.dev/rss.xml 200
+/sitemap.xml https://chatbot-backend-fly.fly.dev/sitemap.xml 200
