@@ -11,6 +11,15 @@
   const STORAGE_THEME = "chatiip_theme"; // 'light' | 'dark'
   const STORAGE_SETTINGS = "chatiip_settings"; // { notifications: boolean }
 
+  // Google Sign-In (Frontend)
+  // 1) Tạo Google OAuth Client ID (Web) và thêm origin/redirect theo domain của bạn.
+  // 2) Dán Client ID vào đây.
+  // Lưu ý: Client ID là public, không phải secret.
+  // Google OAuth Client ID (Web)
+  // Provided by you:
+  // 847619063389-bndr6dll057jm4891cruu2as51r5mtob.apps.googleusercontent.com
+  const GOOGLE_CLIENT_ID = "847619063389-bndr6dll057jm4891cruu2as51r5mtob.apps.googleusercontent.com";
+
   let pendingRegisterEmail = null;
   let forgotOtpSent = false;
 
@@ -41,6 +50,100 @@
       throw new Error(data.message || "Có lỗi xảy ra, vui lòng thử lại.");
     }
     return data;
+  }
+
+  // ---------------- Google Identity Services ----------------
+  let googleGsiLoaded = false;
+  let googleGsiLoadingPromise = null;
+
+  function loadGoogleGsiScript() {
+    if (googleGsiLoaded) return Promise.resolve();
+    if (googleGsiLoadingPromise) return googleGsiLoadingPromise;
+
+    googleGsiLoadingPromise = new Promise((resolve, reject) => {
+      if (document.getElementById("google-gsi")) {
+        googleGsiLoaded = true;
+        return resolve();
+      }
+      const s = document.createElement("script");
+      s.id = "google-gsi";
+      s.src = "https://accounts.google.com/gsi/client";
+      s.async = true;
+      s.defer = true;
+      s.onload = () => {
+        googleGsiLoaded = true;
+        resolve();
+      };
+      s.onerror = () => reject(new Error("Không tải được Google Sign-In script."));
+      document.head.appendChild(s);
+    });
+
+    return googleGsiLoadingPromise;
+  }
+
+  async function renderGoogleButton() {
+    const container = document.getElementById("googleSignInContainer");
+    if (!container) return;
+
+    // Nếu chưa cấu hình client id thì hiển thị gợi ý (tránh treo UI)
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")) {
+      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">Chưa cấu hình Google Client ID. Mở <b>frontend/auth.js</b> và thay biến <b>GOOGLE_CLIENT_ID</b>.</div>`;
+      return;
+    }
+
+    function escapeHtmlLocal(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    try {
+      await loadGoogleGsiScript();
+    } catch (e) {
+      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">${escapeHtmlLocal(String(e.message || e))}</div>`;
+      return;
+    }
+
+    if (!(window.google && google.accounts && google.accounts.id)) {
+      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">Google Sign-In chưa sẵn sàng. Hãy thử tải lại trang.</div>`;
+      return;
+    }
+
+    // Reset render
+    container.innerHTML = "";
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      ux_mode: "popup",
+      callback: async (resp) => {
+        try {
+          const data = await api("/auth/google", {
+            method: "POST",
+            body: { credential: resp.credential }
+          });
+          const user = data.user;
+          setCurrentUser(user);
+          closeOverlay("authOverlay");
+          syncAllUI();
+          showToast("Đăng nhập Google thành công!", "success");
+        } catch (err) {
+          showToast(err.message || "Đăng nhập Google thất bại.", "error");
+        }
+      }
+    });
+
+    // Render default Google button
+    google.accounts.id.renderButton(container, {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+      shape: "pill",
+      width: 320
+    });
   }
 
 
@@ -402,6 +505,13 @@ function injectAuthUI() {
               <input class="auth-input" id="loginPassword" type="password" placeholder="Nhập mật khẩu" required />
 
               <button class="auth-submit" type="submit">Đăng nhập</button>
+
+              <div style="display:flex; align-items:center; gap:10px; margin:14px 0 8px 0; opacity:.85;">
+                <div style="height:1px; flex:1; background:rgba(148,163,184,.6);"></div>
+                <span style="font-size:12px;">hoặc</span>
+                <div style="height:1px; flex:1; background:rgba(148,163,184,.6);"></div>
+              </div>
+              <div id="googleSignInContainer" style="display:flex; justify-content:center; margin:10px 0 6px 0;"></div>
               <div class="auth-hint"><button class="link-btn" id="forgotOpenBtn" type="button">Quên mật khẩu?</button></div>
               <div class="auth-hint">Chưa có tài khoản? <button class="link-btn" id="gotoRegister" type="button">Đăng ký ngay</button></div>
             </form>
@@ -597,6 +707,13 @@ function injectAuthUI() {
     el.classList.add("show");
     el.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
+
+    // Nếu mở auth overlay thì render Google Sign-In button (nếu có)
+    if (id === "authOverlay") {
+      setTimeout(() => {
+        try { renderGoogleButton(); } catch (_) {}
+      }, 0);
+    }
   }
 
   function closeOverlay(id) {
@@ -621,6 +738,12 @@ function injectAuthUI() {
     regTab.classList.toggle("active", !isLogin);
     loginPanel.classList.toggle("hidden", !isLogin);
     regPanel.classList.toggle("hidden", isLogin);
+
+    if (isLogin) {
+      setTimeout(() => {
+        try { renderGoogleButton(); } catch (_) {}
+      }, 0);
+    }
   }
 
   // --------------- Account UI sync ----------------
@@ -801,10 +924,17 @@ function injectAuthUI() {
   }
 
   function logout() {
-    clearCurrentUser();
-    showToast("Bạn đã đăng xuất.", "info");
-    closeOverlay("accountOverlay");
-    syncAllUI();
+    (async () => {
+      try {
+        await api("/auth/logout", { method: "POST" });
+      } catch (_) {
+        // ignore
+      }
+      clearCurrentUser();
+      showToast("Bạn đã đăng xuất.", "info");
+      closeOverlay("accountOverlay");
+      syncAllUI();
+    })();
   }
 
   // --------------- Event wiring ----------------

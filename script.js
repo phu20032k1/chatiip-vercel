@@ -1584,6 +1584,91 @@ document.addEventListener('DOMContentLoaded', function () {
     const voiceButton = document.getElementById('voiceButton');
     const fileInput = document.getElementById('fileInput');
 
+    // =========================
+    // Autosave: lưu metadata đoạn chat sau 10 phút không tương tác + khi rời tab
+    // Mục tiêu: thoát ra ~10 phút quay lại vẫn thấy đoạn chat trong sidebar, kể cả guest.
+    // =========================
+    var __chatAutosaveTimer = null;
+    const CHAT_AUTOSAVE_IDLE_MS = 10 * 60 * 1000;
+
+    function getMetaFromCache(sessionId) {
+        try {
+            if (!sessionId) return { title: "Đoạn chat", preview: "" };
+            const cached = readChatCacheByKey(getChatCacheKey(sessionId));
+            const msgs = cached && Array.isArray(cached.messages) ? cached.messages : [];
+
+            let title = "Đoạn chat";
+            for (const m of msgs) {
+                if (String(m?.role || "") === "user") {
+                    const t = String(m?.text ?? "").trim();
+                    if (t) { title = t; break; }
+                }
+            }
+
+            let preview = "";
+            for (let i = msgs.length - 1; i >= 0; i--) {
+                const m = msgs[i];
+                if (!m) continue;
+                const raw = m.text ?? m.content ?? "";
+                if (raw == null) continue;
+                const s = (typeof raw === "string") ? raw : JSON.stringify(raw);
+                if (String(s || "").trim()) { preview = s; break; }
+            }
+
+            return { title, preview };
+        } catch (_) {
+            return { title: "Đoạn chat", preview: "" };
+        }
+    }
+
+    function saveActiveChatMetaNow(reason) {
+        try {
+            const sid = getBackendSessionId();
+            if (!sid) return;
+            if (typeof upsertSession !== "function") return;
+
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
+
+            const meta = getMetaFromCache(sid);
+
+            // Nếu đã có title custom thì giữ nguyên
+            try {
+                const list = (typeof readSessions === "function") ? readSessions(ownerId) : [];
+                const cur = list.find(s => String(s?.sessionId || "") === String(sid));
+                if (cur && cur.title && String(cur.title).trim() && cur.title !== "Đoạn chat") {
+                    meta.title = String(cur.title);
+                }
+            } catch (_) {}
+
+            upsertSession(ownerId, sid, { title: meta.title, preview: meta.preview });
+            if (loggedIn) {
+                try { upsertSessionToServer(sid, { title: meta.title, preview: meta.preview, reason }); } catch (_) {}
+            }
+
+            try { updateHistoryUI(historySearchInput ? historySearchInput.value : ""); } catch (_) {}
+        } catch (_) {}
+    }
+
+    function scheduleChatAutosave() {
+        try {
+            if (__chatAutosaveTimer) clearTimeout(__chatAutosaveTimer);
+            __chatAutosaveTimer = setTimeout(() => {
+                saveActiveChatMetaNow("idle-10m");
+            }, CHAT_AUTOSAVE_IDLE_MS);
+        } catch (_) {}
+    }
+
+    // Save when user hides tab / closes page
+    try {
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) saveActiveChatMetaNow("hidden");
+        });
+        window.addEventListener("beforeunload", () => {
+            saveActiveChatMetaNow("unload");
+        });
+    } catch (_) {}
+
 
 
 // =========================
@@ -2314,19 +2399,23 @@ function sendMessage() {
 
         addUserMessage(message);
 
-        // ⭐ Cập nhật lịch sử theo tài khoản (chỉ khi đã đăng nhập)
+        // ⭐ Cập nhật lịch sử đoạn chat: luôn lưu local (kể cả guest), và nếu đã đăng nhập thì sync đa thiết bị.
         try {
-            const u = getLoggedInUser && getLoggedInUser();
             const sid = getBackendSessionId();
-            if (u && u.id) {
-                if (sid) {
-                    upsertSession(u.id, sid, { preview: message });
-                } else {
-                    // chưa có session_id cho backend → lưu tạm để khi server trả về session_id thì gắn vào lịch sử
-                    setPendingSession(u.id, { title: message, preview: message, createdAt: Date.now() });
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
+
+            if (sid) {
+                upsertSession(ownerId, sid, { preview: message });
+                // sync lên backend để thiết bị khác cũng thấy lịch sử
+                if (loggedIn) {
+                    try { upsertSessionToServer(sid, { preview: message }); } catch (_) {}
                 }
-                updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+            } else {
+                // chưa có session_id cho backend → lưu tạm để khi server trả về session_id thì gắn vào lịch sử
+                setPendingSession(ownerId, { title: message, preview: message, createdAt: Date.now() });
             }
+            updateHistoryUI(historySearchInput ? historySearchInput.value : "");
         } catch (_) {}
 
         // ✅ Lưu nhanh vào cache để reload trang là thấy ngay
@@ -2338,6 +2427,9 @@ function sendMessage() {
                 messageId
             });
         } catch (_) {}
+
+        // Autosave metadata: reset idle timer
+        try { scheduleChatAutosave(); } catch (_) {}
 
         messageInput.value = '';
 
@@ -2375,14 +2467,30 @@ function sendMessage() {
 
                     // ⭐ finalize pending history entry
                     try {
-                        const u = getLoggedInUser && getLoggedInUser();
-                        if (u && u.id) {
-                            const pending = readPendingSession ? readPendingSession(u.id) : null;
-                            const title = (pending && pending.title) ? pending.title : message;
-                            upsertSession(u.id, backendSessionIdFromServer, { title, preview: message, createdAt: pending?.createdAt || Date.now() });
-                            clearPendingSession(u.id);
-                            updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+                        const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+                        const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
+                        const pending = readPendingSession ? readPendingSession(ownerId) : null;
+                        const title = (pending && pending.title) ? pending.title : message;
+
+                        upsertSession(ownerId, backendSessionIdFromServer, {
+                            title,
+                            preview: message,
+                            createdAt: (pending && pending.createdAt) ? pending.createdAt : Date.now()
+                        });
+
+                        // sync lên backend để đa thiết bị (chỉ khi đã đăng nhập)
+                        if (loggedIn) {
+                            try {
+                                upsertSessionToServer(backendSessionIdFromServer, {
+                                    title,
+                                    preview: message,
+                                    createdAt: (pending && pending.createdAt) ? pending.createdAt : Date.now()
+                                });
+                            } catch (_) {}
                         }
+
+                        clearPendingSession(ownerId);
+                        updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                     } catch (_) {}
                 }
 
@@ -2428,13 +2536,21 @@ function sendMessage() {
                     });
                 } catch (_) {}
 
+                // Autosave metadata: reset idle timer
+                try { scheduleChatAutosave(); } catch (_) {}
+
                 // ⭐ Cập nhật preview lịch sử (ưu tiên câu trả lời gần nhất)
                 try {
-                    const u = getLoggedInUser && getLoggedInUser();
                     const sidNow = getBackendSessionId();
-                    if (u && u.id && sidNow) {
+                    if (sidNow) {
+                        const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+                        const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
                         const pv = (typeof displayText === "string") ? displayText : (typeof answerRaw === "string" ? answerRaw : JSON.stringify(displayText));
-                        upsertSession(u.id, sidNow, { preview: pv });
+                        upsertSession(ownerId, sidNow, { preview: pv });
+                        // sync đa thiết bị nếu đã đăng nhập
+                        if (loggedIn) {
+                            try { upsertSessionToServer(sidNow, { preview: pv }); } catch (_) {}
+                        }
                         updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                     }
                 } catch (_) {}
@@ -4037,6 +4153,32 @@ logToGoogle({
         }
     }
 
+    // Guest sessions: vẫn lưu lịch sử trên thiết bị ngay cả khi chưa đăng nhập.
+    // Khi đăng nhập, lịch sử tài khoản sẽ được đồng bộ đa thiết bị thông qua backend.
+    const GUEST_ID_KEY = "chatiip_guest_id";
+    function getOrCreateGuestId() {
+        try {
+            let gid = localStorage.getItem(GUEST_ID_KEY);
+            if (!gid) {
+                gid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "_" + Math.random());
+                localStorage.setItem(GUEST_ID_KEY, gid);
+            }
+            return gid;
+        } catch (_) {
+            return "guest";
+        }
+    }
+
+    function getHistoryOwnerId() {
+        const u = getLoggedInUser();
+        return (u && u.id) ? u.id : getOrCreateGuestId();
+    }
+
+    function isLoggedIn() {
+        const u = getLoggedInUser();
+        return !!(u && u.id);
+    }
+
     function historyKey(userId) {
         return HISTORY_KEY_PREFIX + String(userId || "");
     }
@@ -4058,6 +4200,83 @@ logToGoogle({
     function writeSessions(userId, list) {
         try { localStorage.setItem(historyKey(userId), JSON.stringify(list || [])); } catch (_) {}
     }
+
+    // ---------- Server sync (multi-device) ----------
+    // Đồng bộ metadata lịch sử chat theo user lên backend của bạn.
+    const API_BASE =
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+            ? "http://localhost:8080/api"
+            : "/api";
+
+    async function apiJson(path, options = {}) {
+        const res = await fetch(API_BASE + path, {
+            method: options.method || "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: options.body ? JSON.stringify(options.body) : undefined
+        });
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (!res.ok) throw new Error(data.message || "Có lỗi xảy ra.");
+        return data;
+    }
+
+    function normalizeServerSessions(serverList) {
+        const arr = Array.isArray(serverList) ? serverList : [];
+        return arr.map((s) => {
+            const created = s.createdAt ? Date.parse(s.createdAt) : NaN;
+            const updated = s.updatedAt ? Date.parse(s.updatedAt) : NaN;
+            return {
+                sessionId: String(s.sessionId),
+                title: String(s.title || "Đoạn chat"),
+                preview: String(s.preview || ""),
+                pinned: !!s.pinned,
+                archived: !!s.archived,
+                // script.js đang dùng số (ms) cho sorting
+                createdAt: Number.isNaN(created) ? Date.now() : created,
+                updatedAt: Number.isNaN(updated) ? Date.now() : updated
+            };
+        });
+    }
+
+    async function pullSessionsFromServer(user) {
+        try {
+            if (!user || !user.id) return;
+            const data = await apiJson("/chat/sessions");
+            const normalized = normalizeServerSessions(data.sessions);
+            writeSessions(user.id, normalized);
+            updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+        } catch (e) {
+            // Không block UI nếu lỗi
+            console.warn("Pull sessions failed", e);
+        }
+    }
+
+    async function upsertSessionToServer(sessionId, patch) {
+        try {
+            if (!sessionId) return;
+            await apiJson(`/chat/sessions/${encodeURIComponent(String(sessionId))}`, {
+                method: "PUT",
+                body: patch || {}
+            });
+        } catch (e) {
+            console.warn("Upsert session failed", e);
+        }
+    }
+
+    // Khi user login/logout → pull list sessions để đồng bộ đa thiết bị
+    window.addEventListener("chatiip:auth-changed", (ev) => {
+        const u = ev && ev.detail ? ev.detail.user : null;
+        if (u && u.id) {
+            pullSessionsFromServer(u);
+        }
+    });
+
+    // Nếu đã login sẵn (localStorage) thì pull ngay khi tải trang
+    try {
+        const u0 = getLoggedInUser && getLoggedInUser();
+        if (u0 && u0.id) pullSessionsFromServer(u0);
+    } catch (_) {}
 
     function upsertSession(userId, sessionId, patch = {}) {
         if (!userId || !sessionId) return;
@@ -4146,18 +4365,14 @@ logToGoogle({
     function updateHistoryUI(filterText = "") {
         if (!chatHistoryList || !historyEmpty) return;
         const user = getLoggedInUser();
-
-        // Guest
-        if (!user) {
-            chatHistoryList.innerHTML = `<div class="sidebar-empty" id="historyEmpty">Đăng nhập để xem lịch sử chat.</div>`;
-            return;
-        }
+        const ownerId = getHistoryOwnerId();
+        const loggedIn = !!(user && user.id);
 
         const q = String(filterText || "").trim().toLowerCase();
         const activeId = String(getBackendSessionId() || "");
 
         // Default: ẩn các đoạn đã lưu trữ
-        let list = readSessions(user.id).filter(s => !s.archived);
+        let list = readSessions(ownerId).filter(s => !s.archived);
 
         // Search
         if (q) {
@@ -4176,11 +4391,14 @@ logToGoogle({
         });
 
         // Pending (when user has typed but server hasn't returned a backend session_id yet)
-        const pending = readPendingSession(user.id);
+        const pending = readPendingSession(ownerId);
         const hasPending = !!(pending && !activeId);
 
         if (!list.length && !hasPending) {
-            chatHistoryList.innerHTML = `<div class="sidebar-empty">${q ? "Không tìm thấy lịch sử phù hợp." : "Chưa có lịch sử chat."}</div>`;
+            const note = loggedIn
+                ? ""
+                : `<div class="sidebar-empty" style="margin-bottom:10px;">Lịch sử đang được lưu trên thiết bị này. Đăng nhập để đồng bộ giữa điện thoại và máy tính.</div>`;
+            chatHistoryList.innerHTML = note + `<div class="sidebar-empty">${q ? "Không tìm thấy lịch sử phù hợp." : "Chưa có lịch sử chat."}</div>`;
             return;
         }
 
@@ -4200,7 +4418,11 @@ logToGoogle({
             `
             : "";
 
-        chatHistoryList.innerHTML = pendingHtml + list.map(item => {
+        const noteTop = loggedIn
+            ? ""
+            : `<div class="sidebar-empty" style="margin-bottom:10px;">Lịch sử đang được lưu trên thiết bị này. Đăng nhập để đồng bộ giữa điện thoại và máy tính.</div>`;
+
+        chatHistoryList.innerHTML = noteTop + pendingHtml + list.map(item => {
             const title = formatHistoryTitle(item.title);
             const preview = String(item.preview || "").trim();
             const sub = preview ? (preview.length > 70 ? preview.slice(0, 70) + "…" : preview) : "";
@@ -4287,18 +4509,21 @@ logToGoogle({
             if (!btn) return;
             const act = btn.getAttribute("data-arch-act");
             const sid = btn.getAttribute("data-session-id") || "";
-            const user = getLoggedInUser();
-            if (!user || !sid) return;
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
+            if (!sid) return;
 
             if (act === "restore") {
-                upsertSession(user.id, sid, { archived: false });
+                upsertSession(ownerId, sid, { archived: false });
+                if (loggedIn) { try { upsertSessionToServer(sid, { archived: false }); } catch (_) {} }
                 showToast("Đã khôi phục khỏi lưu trữ.", "success");
                 renderArchiveList();
                 updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                 return;
             }
             if (act === "delete") {
-                removeSession(user.id, sid);
+                removeSession(ownerId, sid);
+                if (loggedIn) { try { upsertSessionToServer(sid, { deleted: true }); } catch (_) {} }
                 showToast("Đã xóa đoạn chat.", "success");
                 renderArchiveList();
                 updateHistoryUI(historySearchInput ? historySearchInput.value : "");
@@ -4310,16 +4535,17 @@ logToGoogle({
     }
 
     function openArchiveOverlay() {
-        const user = getLoggedInUser();
-        if (!user) {
-            showToast("Vui lòng đăng nhập để xem lưu trữ.", "info");
-            return;
-        }
+        // Guest cũng được phép xem lưu trữ (lưu trên thiết bị). Nếu đăng nhập sẽ đồng bộ qua backend.
         const el = ensureArchiveOverlay();
         el.classList.add("show");
         el.setAttribute("aria-hidden", "false");
         document.body.classList.add("modal-open");
         renderArchiveList();
+        try {
+            if (!isLoggedIn()) {
+                showToast("Lưu trữ đang được lưu trên thiết bị này. Đăng nhập để đồng bộ đa thiết bị.", "info");
+            }
+        } catch (_) {}
         setTimeout(() => {
             try { el.querySelector("#archiveSearchInput")?.focus(); } catch (_) {}
         }, 40);
@@ -4339,14 +4565,10 @@ logToGoogle({
         const qEl = archiveOverlayEl.querySelector("#archiveSearchInput");
         if (!listEl) return;
 
-        const user = getLoggedInUser();
-        if (!user) {
-            listEl.innerHTML = `<div class="sidebar-empty">Vui lòng đăng nhập.</div>`;
-            return;
-        }
+        const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
 
         const q = String(qEl?.value || "").trim().toLowerCase();
-        let list = readSessions(user.id).filter(s => !!s.archived);
+        let list = readSessions(ownerId).filter(s => !!s.archived);
         if (q) {
             list = list.filter(s => (
                 String(s.title || "").toLowerCase().includes(q) ||
@@ -4425,11 +4647,12 @@ logToGoogle({
             closeHistoryMenu();
             if (!sid) return;
 
-            const user = getLoggedInUser();
-            if (!user) return;
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
 
             if (act == "delete") {
-                removeSession(user.id, sid);
+                removeSession(ownerId, sid);
+                if (loggedIn) { try { upsertSessionToServer(sid, { deleted: true }); } catch (_) {} }
                 if (String(getBackendSessionId() || "") === String(sid)) {
                     clearBackendSessionId();
                 }
@@ -4438,27 +4661,31 @@ logToGoogle({
             }
 
             if (act == "rename") {
-                const list = readSessions(user.id);
+                const list = readSessions(ownerId);
                 const cur = list.find(s => String(s.sessionId) === String(sid));
                 const next = prompt("Đổi tên đoạn chat", cur?.title || "Đoạn chat");
                 if (next !== null) {
-                    upsertSession(user.id, sid, { title: String(next).trim() || "Đoạn chat" });
+                    const title = String(next).trim() || "Đoạn chat";
+                    upsertSession(ownerId, sid, { title });
+                    if (loggedIn) { try { upsertSessionToServer(sid, { title }); } catch (_) {} }
                     updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                 }
                 return;
             }
 
             if (act == "pin") {
-                const list = readSessions(user.id);
+                const list = readSessions(ownerId);
                 const cur = list.find(s => String(s.sessionId) === String(sid));
                 const nextPinned = !(cur && cur.pinned);
-                upsertSession(user.id, sid, { pinned: nextPinned });
+                upsertSession(ownerId, sid, { pinned: nextPinned });
+                if (loggedIn) { try { upsertSessionToServer(sid, { pinned: nextPinned }); } catch (_) {} }
                 updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                 return;
             }
 
             if (act == "archive") {
-                upsertSession(user.id, sid, { archived: true });
+                upsertSession(ownerId, sid, { archived: true });
+                if (loggedIn) { try { upsertSessionToServer(sid, { archived: true }); } catch (_) {} }
                 updateHistoryUI(historySearchInput ? historySearchInput.value : "");
                 return;
             }
@@ -4499,8 +4726,8 @@ logToGoogle({
 
         // Update pin label
         try {
-            const user = getLoggedInUser();
-            const list = user ? readSessions(user.id) : [];
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            const list = readSessions(ownerId);
             const cur = list.find(s => String(s.sessionId) === String(sid));
             const t = menu.querySelector("#historyMenuPinText");
             if (t) t.textContent = (cur && cur.pinned) ? "Bỏ ghim" : "Ghim đoạn chat";
@@ -4551,12 +4778,12 @@ logToGoogle({
     }
 
 function ensureActiveSessionIsTracked() {
-        const user = getLoggedInUser();
-        if (!user) return;
+        const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+        const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
         const sid = getBackendSessionId();
         if (!sid) return;
 
-        const list = readSessions(user.id);
+        const list = readSessions(ownerId);
         const exists = list.some(s => String(s.sessionId) === String(sid));
         if (exists) return;
 
@@ -4569,7 +4796,8 @@ function ensureActiveSessionIsTracked() {
             const firstUser = msgs.find(m => String(m.role || "") === "user" && (m.text || "").trim());
             if (firstUser && firstUser.text) title = String(firstUser.text);
         } catch (_) {}
-        upsertSession(user.id, sid, { title, preview: "" });
+        upsertSession(ownerId, sid, { title, preview: "" });
+        if (loggedIn) { try { upsertSessionToServer(sid, { title, preview: "" }); } catch (_) {} }
     }
 
     // Listen auth changes from auth.js
@@ -4661,9 +4889,11 @@ function ensureActiveSessionIsTracked() {
         // Reset session_id của backend (bắt đầu hội thoại mới)
         clearBackendSessionId();
 
-        // Reset pending meta
-        const user = getLoggedInUser();
-        if (user) clearPendingSession(user.id);
+        // Reset pending meta (guest cũng có pending)
+        try {
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "guest");
+            clearPendingSession(ownerId);
+        } catch (_) {}
 
         // Đưa input về trạng thái centered
         messageInputContainer.classList.add('centered');
