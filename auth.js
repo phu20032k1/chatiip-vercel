@@ -447,31 +447,14 @@
       return;
     }
 
-    // Mobile: giữ ở giữa nhưng phải nằm dưới mobile topbar để không bị che bởi nút hamburger.
-    // Nếu không có mobile topbar thì fallback về 16px.
-    const topbar = document.getElementById("mobileTopbar");
-    let topOffset = 16;
-    if (topbar) {
-      try {
-        const cs = window.getComputedStyle(topbar);
-        if (cs && cs.display !== "none") {
-          const h = Math.round(topbar.getBoundingClientRect().height || 0);
-          if (h > 0) topOffset = h + 12;
-        }
-      } catch (_) {
-        // ignore
-      }
-    }
-    bar.style.top = String(topOffset) + "px";
-    bar.style.left = "50%";
-    bar.style.right = "auto";
-    bar.style.transform = "translateX(-50%)";
-
-    // Mobile: cập nhật biến CSS để chat container chừa chỗ cho auth bar
-    try {
-      const h = Math.ceil(bar.getBoundingClientRect().height || 0);
-      document.documentElement.style.setProperty("--authbar-height", (h > 0 ? (h + "px") : "0px"));
-    } catch (_) {}
+    // Mobile: theo yêu cầu mới -> chỉ để nút Đăng nhập ở góc phải trên.
+    // Không cần canh giữa / không cần chừa khoảng trống cho chat.
+    const safeTop = 10; // gần giống unauth-topbar
+    bar.style.top = `calc(env(safe-area-inset-top, 0px) + ${safeTop}px)`;
+    bar.style.right = "12px";
+    bar.style.left = "auto";
+    bar.style.transform = "none";
+    try { document.documentElement.style.setProperty("--authbar-height", "0px"); } catch (_) {}
   }
 
   // Decide whether to show the top auth bar (Đăng nhập/Đăng ký).
@@ -1470,5 +1453,94 @@ function injectAuthUI() {
     enhanceOtpInput("forgotCode");
     wireEvents();
     syncAllUI();
+
+    // ====================  IDLE RESET (10 phút)  ====================
+    // Yêu cầu: người dùng không tương tác 10 phút -> tự động reset về "cổng chào".
+    // - Nếu đang ở trang chat: gọi reset UI (startNewChatUI) qua hook global.
+    // - Nếu đang ở trang khác: chuyển về index.html.
+    (function initIdleReset() {
+      const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+      const CHECK_EVERY_MS = 15 * 1000;
+
+      let lastActivity = Date.now();
+      let pendingReset = false;
+      let armed = true;
+
+      // Throttle nhẹ để giảm chi phí trên mobile
+      let __af = 0;
+      function markActive() {
+        if (!armed) return;
+        if (__af) return;
+        __af = requestAnimationFrame(() => {
+          __af = 0;
+          lastActivity = Date.now();
+          pendingReset = false;
+        });
+      }
+
+      function getIndexUrl() {
+        try {
+          const v = (window.CHATIIP_VERSION || new URL(window.location.href).searchParams.get("v") || "").trim();
+          return v ? ("index.html?v=" + encodeURIComponent(v)) : "index.html";
+        } catch (_) {
+          return "index.html";
+        }
+      }
+
+      function doResetNow() {
+        if (!armed) return;
+        armed = false; // tránh reset lặp
+        try {
+          const page = (document.body && document.body.dataset && document.body.dataset.page) ? String(document.body.dataset.page) : "";
+          const resetFn = window.__CHATIIP_RESET_TO_WELCOME;
+          if (page === "chat" && typeof resetFn === "function") {
+            resetFn();
+            // re-arm sau khi reset
+            setTimeout(() => {
+              armed = true;
+              lastActivity = Date.now();
+            }, 300);
+            return;
+          }
+        } catch (_) {}
+
+        // Trang không phải chat -> điều hướng về cổng chào
+        try { window.location.href = getIndexUrl(); } catch (_) {}
+      }
+
+      function checkIdle() {
+        if (!armed) return;
+        const idleFor = Date.now() - lastActivity;
+        if (idleFor < IDLE_TIMEOUT_MS) return;
+
+        // Nếu tab đang ẩn, chờ user quay lại rồi reset (tránh DOM thao tác khi hidden)
+        if (document.hidden) {
+          pendingReset = true;
+          return;
+        }
+        doResetNow();
+      }
+
+      const events = [
+        "mousemove", "mousedown", "click",
+        "keydown", "keyup",
+        "touchstart", "touchmove",
+        "scroll", "wheel",
+        "focus"
+      ];
+      events.forEach((ev) => {
+        window.addEventListener(ev, markActive, { passive: true, capture: true });
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        // Khi quay lại tab: nếu đã quá 10 phút -> reset
+        if (!document.hidden && pendingReset) {
+          pendingReset = false;
+          doResetNow();
+        }
+      });
+
+      setInterval(checkIdle, CHECK_EVERY_MS);
+    })();
   });
 })();

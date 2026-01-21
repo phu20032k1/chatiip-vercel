@@ -85,6 +85,157 @@ body[data-page="chat"] .rail{
     z-index: 650;
 }
 
+/* =========================
+   Unauthenticated mode (CHAT PAGE)
+   - No sidebar / rail
+   - No history persistence
+   - Topbar like ChatGPT: "ChatIIP" + new chat (pencil)
+   ========================= */
+
+body[data-page="chat"] .unauth-topbar{
+    display: none;
+    position: fixed;
+    left: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    /* Keep below auth/modal overlays to avoid overlapping the login/register modal */
+    z-index: 900;
+    align-items: center;
+    gap: 10px;
+    /*
+      IMPORTANT: On desktop we set left:0; right:0 to center the menu. That makes
+      the topbar span the full viewport width and it can accidentally sit above
+      the auth buttons (Đăng nhập/Đăng ký) even though that area is visually empty.
+      Make the container itself ignore pointer events, then re-enable on children.
+    */
+    pointer-events: none;
+}
+
+body[data-page="chat"] .unauth-topbar > *{
+    pointer-events: auto;
+}
+
+/* When any modal is open (login/register/account...), hide the unauth topbar/menu to avoid visual overlap */
+body.modal-open[data-page="chat"] .unauth-topbar{ display: none !important; }
+body.modal-open[data-page="chat"] .unauth-menu{ display: none !important; }
+
+/* Safety net: if a modal is open, never allow the unauth topbar to sit on top of the modal */
+body.modal-open .unauth-topbar{ display: none !important; }
+
+body[data-page="chat"].unauth-mode .unauth-topbar,
+html.unauth-mode body[data-page="chat"] .unauth-topbar{ display: inline-flex; }
+
+/* Mobile (unauth): vẫn hiển thị topbar trái (làm mới + ChatIIP) như ảnh yêu cầu */
+@media (max-width: 768px){
+    body[data-page="chat"].unauth-mode .unauth-topbar,
+    html.unauth-mode body[data-page="chat"] .unauth-topbar{ display: inline-flex; }
+}
+
+body[data-page="chat"] .unauth-brand{
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    padding: 8px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+    cursor: default;
+    user-select: none;
+}
+
+body[data-page="chat"] .unauth-brand i{
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+body[data-page="chat"] .unauth-refresh{
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+body[data-page="chat"] .unauth-refresh:hover{
+    background: rgba(15, 23, 42, 0.06);
+}
+
+body[data-page="chat"].unauth-mode .rail,
+body[data-page="chat"].unauth-mode .sidebar-panel,
+body[data-page="chat"].unauth-mode .sidebar-backdrop,
+body[data-page="chat"].unauth-mode .mobile-topbar,
+html.unauth-mode body[data-page="chat"] .rail,
+html.unauth-mode body[data-page="chat"] .sidebar-panel,
+html.unauth-mode body[data-page="chat"] .sidebar-backdrop,
+html.unauth-mode body[data-page="chat"] .mobile-topbar{
+    display: none !important;
+}
+
+body[data-page="chat"].unauth-mode .main-container,
+html.unauth-mode body[data-page="chat"] .main-container{ margin-left: 0 !important; }
+
+/* =========================
+   Chat header actions (logged-in)
+   - Top-right Share + 3-dots (desktop)
+   - On mobile, buttons are rendered inside .mobile-topbar
+   ========================= */
+
+body[data-page="chat"] .chat-top-actions{
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 700;
+    align-items: center;
+    gap: 10px;
+}
+
+body[data-page="chat"] .chat-top-btn{
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    background: #ffffff;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+body[data-page="chat"] .chat-top-btn:hover{
+    background: rgba(15, 23, 42, 0.04);
+}
+
+/* Show desktop top-right actions only when logged in AND the chat has messages */
+body[data-page="chat"].chat-has-messages:not(.unauth-mode) .chat-top-actions{ display: inline-flex; }
+
+/* On phones, the actions live in the mobile topbar */
+@media (max-width: 720px){
+    body[data-page="chat"] .chat-top-actions{ display: none !important; }
+    /* Mobile keeps the new-chat (pencil). The 3-dots appears only after the chat has messages (logged-in). */
+    body[data-page="chat"] #mobileChatMoreBtn{ display: none; }
+    body[data-page="chat"].chat-has-messages:not(.unauth-mode) #mobileChatMoreBtn{ display: inline-flex; }
+}
+
+@media (max-width: 720px){
+    body[data-page="chat"].unauth-mode .chat-container,
+    body[data-page="chat"].unauth-mode .chat-container.has-messages,
+    html.unauth-mode body[data-page="chat"] .chat-container,
+    html.unauth-mode body[data-page="chat"] .chat-container.has-messages{
+        /* Chừa chỗ cho unauth-topbar (giống ChatGPT) */
+        padding-top: calc(64px + env(safe-area-inset-top, 0px)) !important;
+    }
+}
+
 body[data-page="chat"] .rail-btn{
     width: 40px;
     height: 40px;
@@ -835,6 +986,43 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     border-top: none;
     padding: 0;
     transition: all 0.35s ease;
+}
+
+/*
+  Mobile: đặt thanh nhập ở bottom (giống ChatGPT),
+  kể cả khi đang ở trạng thái "chưa chat" (centered).
+  Desktop giữ nguyên: centered ở giữa màn hình.
+*/
+@media (max-width: 768px){
+    .message-input-container.centered{
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+        transform: none;
+        background: #ffffff;
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+        border-top: 1px solid #e5e7eb;
+        z-index: 100;
+    }
+
+    .message-input-container.centered .message-input-wrapper{
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    /*
+      Đồng bộ kích cỡ khung nhập giữa trạng thái "chưa chat" (centered)
+      và "đang chat" (not(.centered)) trên điện thoại.
+    */
+    .message-input-container:not(.centered){
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .message-input-container:not(.centered) .message-input-wrapper{
+        max-width: 100%;
+        margin: 0 auto;
+    }
 }
 
 /* ICON TIN TỨC — GIỮ LẠI */
@@ -1940,6 +2128,11 @@ body[data-page="chat"] #authBar #registerOpenBtn{
 @media (max-width: 480px){
   .auth-bar{ gap: 8px; }
   .auth-btn{ padding: 8px 10px; font-size: 13px; }
+}
+
+/* Mobile: chỉ hiển thị nút Đăng nhập (ẩn Đăng ký) */
+@media (max-width: 768px){
+  body[data-page="chat"] #authBar #registerOpenBtn{ display: none !important; }
 }
 
 /* Auth modal */
@@ -3048,3 +3241,157 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
     70%{ box-shadow: 0 0 0 10px rgba(0,0,0,0.06); }
     100%{ box-shadow: 0 0 0 0 rgba(0,0,0,0); }
 }
+
+
+/* ====== MENU GIỚI THIỆU Ở GIỮA (chỉ desktop, chưa đăng nhập, chưa gửi tin) ====== */
+body[data-page="chat"] .unauth-menu{
+    display: none;
+}
+
+body[data-page="chat"] .unauth-menu-link{
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+body[data-page="chat"] .unauth-menu-link:hover{
+    background: rgba(15, 23, 42, 0.06);
+}
+
+@media (min-width: 769px){
+    body[data-page="chat"].unauth-mode .unauth-topbar{
+        left: 0;
+        right: 0;
+        justify-content: flex-start;
+        padding: 0 12px;
+    }
+
+    body[data-page="chat"].unauth-mode .unauth-menu{
+        display: inline-flex;
+        gap: 16px;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    body[data-page="chat"].unauth-mode .unauth-topbar.has-messages .unauth-menu{
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px){
+    body[data-page="chat"] .unauth-menu{
+        display: none !important;
+    }
+}
+
+
+    /* ===== Modal nhắc đăng nhập sau 5 câu hỏi ===== */
+    .login-prompt-modal{
+        position: fixed;
+        inset: 0;
+        z-index: 1400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
+    }
+
+    .login-prompt-modal.is-open{
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .login-prompt-backdrop{
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+    }
+
+    .login-prompt-dialog{
+        position: relative;
+        max-width: 420px;
+        width: 90%;
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+        padding: 28px 24px 20px;
+        text-align: center;
+        z-index: 1;
+    }
+
+    .login-prompt-title{
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #020617;
+    }
+
+    .login-prompt-text{
+        font-size: 14px;
+        color: #475569;
+        margin-bottom: 24px;
+    }
+
+    .login-prompt-actions{
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .login-prompt-btn{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .login-prompt-btn-primary{
+        background: #020617;
+        color: #ffffff;
+    }
+
+    .login-prompt-btn-primary:hover{
+        opacity: 0.9;
+    }
+
+    .login-prompt-btn-secondary{
+        background: #ffffff;
+        color: #020617;
+        border-color: rgba(15, 23, 42, 0.18);
+    }
+
+    .login-prompt-btn-secondary:hover{
+        background: rgba(15, 23, 42, 0.03);
+    }
+
+    .login-prompt-ghost{
+        border: none;
+        background: transparent;
+        font-size: 13px;
+        color: #64748b;
+        text-decoration: underline;
+        cursor: pointer;
+        padding: 4px 8px;
+    }
+
+    @media (min-width: 768px){
+        .login-prompt-dialog{
+            width: 420px;
+        }
+    }
+    

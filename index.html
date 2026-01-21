@@ -11,7 +11,7 @@
     <script>
 (function () {
   const STORAGE_KEY = "chatiip_app_version";
-  const FALLBACK_VERSION = "20260121173000";
+  const FALLBACK_VERSION = "20260122043643";
   const u = new URL(window.location.href);
   let v = u.searchParams.get("v") || "";
   if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
@@ -62,6 +62,20 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet" />
 
     <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
+
+    <!-- Prevent UI flash: set unauth-mode early (before DOMContentLoaded) -->
+    <script>
+        (function () {
+            try {
+                const raw = localStorage.getItem('chatiip_current_user');
+                if (!raw) { document.documentElement.classList.add('unauth-mode'); return; }
+                const u = JSON.parse(raw);
+                if (!u || !u.id) document.documentElement.classList.add('unauth-mode');
+            } catch (e) {
+                document.documentElement.classList.add('unauth-mode');
+            }
+        })();
+    </script>
 
     <link rel="canonical" href="https://chatiip.com" />
     <!-- SPEED BOOST -->
@@ -144,6 +158,36 @@
 </head>
 
 <body data-page="chat">
+
+    <!-- Unauthenticated: topbar like ChatGPT (no sidebar / no history) -->
+    <div class="unauth-topbar" id="unauthTopbar" aria-label="Thanh trên (chưa đăng nhập)">
+        <!-- Làm mới/đoạn chat mới đứng trước (giống ảnh yêu cầu) -->
+        <button class="unauth-refresh" id="unauthRefreshBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">
+            <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+        </button>
+
+        <button class="unauth-brand" id="unauthBrandBtn" type="button" aria-label="ChatIIP" title="ChatIIP">
+            <span class="unauth-brand-text">ChatIIP</span>
+        </button>
+
+<!-- ====== MENU GIỮA MÀN HÌNH (desktop, chưa đăng nhập, chưa gửi tin) ====== -->
+<nav class="unauth-menu" aria-label="Menu thông tin">
+    <a href="/gioi-thieu" class="unauth-menu-link">Giới thiệu</a>
+    <a href="/ve-chung-toi" class="unauth-menu-link">Về chúng tôi</a>
+    <a href="/lien-he" class="unauth-menu-link">Liên hệ</a>
+</nav>
+
+    </div>
+
+    <!-- Logged-in: top-right actions (desktop) -->
+    <div class="chat-top-actions" id="chatTopActions" aria-label="Chia sẻ và tùy chọn đoạn chat">
+        <button class="chat-top-btn" id="chatShareBtn" type="button" aria-label="Chia sẻ" title="Chia sẻ">
+            <i class="fas fa-arrow-up-from-bracket" aria-hidden="true"></i>
+        </button>
+        <button class="chat-top-btn" id="chatMoreBtn" type="button" aria-label="Tùy chọn" title="Tùy chọn">
+            <i class="fas fa-ellipsis" aria-hidden="true"></i>
+        </button>
+    </div>
 
     <div class="app-shell">
 
@@ -248,8 +292,13 @@
 
             <div class="mobile-topbar-spacer"></div>
 
+            <!-- Logged-in: keep "Đoạn chat mới" (pencil) and show 3-dots on the top-right.
+                 Share lives inside the 3-dots menu on mobile (per requirement). -->
             <button class="mobile-topbar-btn" id="mobileNewChatBtn" type="button" aria-label="Đoạn chat mới" title="Đoạn chat mới">
-                <i class="fas fa-pen-to-square"></i>
+                <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+            </button>
+            <button class="mobile-topbar-btn" id="mobileChatMoreBtn" type="button" aria-label="Tùy chọn" title="Tùy chọn">
+                <i class="fas fa-ellipsis" aria-hidden="true"></i>
             </button>
         </header>
 
@@ -313,6 +362,26 @@
         </div>
     </div>
 
+    
+    <!-- Modal yêu cầu đăng nhập sau khi hỏi nhiều -->
+    <div class="login-prompt-modal" id="loginPromptModal" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="login-prompt-backdrop"></div>
+        <div class="login-prompt-dialog">
+            <div class="login-prompt-title">Cảm ơn bạn đã dùng thử ChatIIP</div>
+            <div class="login-prompt-text">
+                Đăng nhập hoặc đăng ký để sử dụng đầy đủ tính năng như lưu lịch sử và nhận phản hồi thông minh hơn.
+            </div>
+            <div class="login-prompt-actions">
+                <a href="/login" class="login-prompt-btn login-prompt-btn-primary" id="loginPromptLoginBtn">Đăng nhập</a>
+                <a href="/register" class="login-prompt-btn login-prompt-btn-secondary" id="loginPromptSignupBtn">Đăng ký miễn phí</a>
+            </div>
+            <button type="button" class="login-prompt-ghost" id="loginPromptContinueGuestBtn">
+                Tiếp tục trạng thái đăng xuất
+            </button>
+        </div>
+    </div>
+
+    
     <!-- SCRIPT -->
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>

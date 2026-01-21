@@ -45,22 +45,41 @@ async function logToGoogle(payload) {
 // ====================  BACKEND CHAT SESSION (HISTORY)  ====================
 const CHAT_HISTORY_BASE_URL = "https://luat-lao-dong.onrender.com/history";
 
+// Auth guard: when NOT logged in, do not persist chat/history to localStorage.
+function __isLoggedInLS() {
+    try {
+        const raw = localStorage.getItem("chatiip_current_user");
+        if (!raw) return false;
+        const u = JSON.parse(raw);
+        return !!(u && u.id);
+    } catch (_) {
+        return false;
+    }
+}
+
+let __volatileBackendSessionId = "";
+
 function getBackendSessionId() {
     try {
-        return localStorage.getItem("chatiip_backend_session_id") || "";
+        if (__isLoggedInLS()) {
+            return localStorage.getItem("chatiip_backend_session_id") || "";
+        }
     } catch (_) {
-        return "";
+        // ignore
     }
+    return __volatileBackendSessionId || "";
 }
 
 function setBackendSessionId(sid) {
     try {
-        if (sid) localStorage.setItem("chatiip_backend_session_id", sid);
+        __volatileBackendSessionId = sid || "";
+        if (__isLoggedInLS() && sid) localStorage.setItem("chatiip_backend_session_id", sid);
     } catch (_) {}
 }
 
 function clearBackendSessionId() {
     try {
+        __volatileBackendSessionId = "";
         localStorage.removeItem("chatiip_backend_session_id");
     } catch (_) {}
 }
@@ -84,6 +103,7 @@ function safeJsonParse(raw, fallback) {
 
 function readChatCacheByKey(key) {
     try {
+        if (!__isLoggedInLS()) return null;
         const raw = localStorage.getItem(key);
         if (!raw) return null;
         const obj = safeJsonParse(raw, null);
@@ -97,6 +117,7 @@ function readChatCacheByKey(key) {
 
 function writeChatCacheByKey(key, obj) {
     try {
+        if (!__isLoggedInLS()) return;
         localStorage.setItem(key, JSON.stringify(obj));
     } catch (_) {}
 }
@@ -1867,7 +1888,108 @@ document.addEventListener('DOMContentLoaded', function () {
     const voiceButton = document.getElementById('voiceButton');
     const fileInput = document.getElementById('fileInput');
 
+    const loginPromptModal = document.getElementById('loginPromptModal');
+    const loginPromptContinueGuestBtn = document.getElementById('loginPromptContinueGuestBtn');
+    const loginPromptLoginBtn = document.getElementById('loginPromptLoginBtn');
+    const loginPromptSignupBtn = document.getElementById('loginPromptSignupBtn');
+
+
+    
+
     // =========================
+    // Giới hạn 5 câu hỏi cho khách + modal nhắc đăng nhập
+    // =========================
+    const GUEST_QUESTION_COUNT_KEY = "chatiip_guest_question_count";
+    const GUEST_LOGIN_PROMPT_ALWAYS_KEY = "chatiip_guest_login_prompt_always";
+
+    function getGuestQuestionCount() {
+        try {
+            const raw = localStorage.getItem(GUEST_QUESTION_COUNT_KEY);
+            const n = parseInt(raw || "0", 10);
+            if (!Number.isFinite(n) || n < 0) return 0;
+            return n;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function incrementGuestQuestionCount() {
+        try {
+            let n = getGuestQuestionCount();
+            n += 1;
+            localStorage.setItem(GUEST_QUESTION_COUNT_KEY, String(n));
+            if (n >= 7) {
+                localStorage.setItem(GUEST_LOGIN_PROMPT_ALWAYS_KEY, "1");
+            }
+            return n;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function shouldAlwaysShowLoginPrompt() {
+        try {
+            return localStorage.getItem(GUEST_LOGIN_PROMPT_ALWAYS_KEY) === "1";
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function openLoginPromptModal() {
+        if (!loginPromptModal) return;
+        loginPromptModal.classList.add("is-open");
+        loginPromptModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeLoginPromptModal() {
+        if (!loginPromptModal) return;
+        loginPromptModal.classList.remove("is-open");
+        loginPromptModal.setAttribute("aria-hidden", "true");
+    }
+
+    // Gán sự kiện cho nút trong modal
+    if (loginPromptContinueGuestBtn) {
+        loginPromptContinueGuestBtn.addEventListener("click", function () {
+            closeLoginPromptModal();
+        });
+    }
+
+    if (loginPromptModal) {
+        loginPromptModal.addEventListener("click", function (ev) {
+            try {
+                if (ev.target === loginPromptModal || ev.target.classList.contains("login-prompt-backdrop")) {
+                    closeLoginPromptModal();
+                }
+            } catch (_) {}
+        });
+
+
+    if (loginPromptLoginBtn) {
+        loginPromptLoginBtn.addEventListener("click", function (ev) {
+            try { ev.preventDefault(); } catch (_) {}
+            try { closeLoginPromptModal(); } catch (_) {}
+            try {
+                const btn = document.getElementById("loginOpenBtn");
+                if (btn) btn.click();
+            } catch (_) {}
+        });
+    }
+
+    if (loginPromptSignupBtn) {
+        loginPromptSignupBtn.addEventListener("click", function (ev) {
+            try { ev.preventDefault(); } catch (_) {}
+            try { closeLoginPromptModal(); } catch (_) {}
+            try {
+                const btn = document.getElementById("registerOpenBtn");
+                if (btn) btn.click();
+            } catch (_) {}
+        });
+    }
+
+    }
+
+
+// =========================
     // Autosave: lưu metadata đoạn chat sau 10 phút không tương tác + khi rời tab
     // Mục tiêu: thoát ra ~10 phút quay lại vẫn thấy đoạn chat trong sidebar, kể cả guest.
     // =========================
@@ -2786,6 +2908,17 @@ function sendMessage() {
         const message = messageInput.value.trim();
         if (!message) return;
 
+        // Đếm số câu hỏi của khách và hiển thị modal khi đến câu thứ 5
+        try {
+            const isGuestUser = (typeof isLoggedIn === "function") ? !isLoggedIn() : !(getLoggedInUser && getLoggedInUser()?.id);
+            if (isGuestUser) {
+                const count = incrementGuestQuestionCount();
+                if (count === 5) {
+                    openLoginPromptModal();
+                }
+            }
+        } catch (_) {}
+
         const messageId = (window.crypto && crypto.randomUUID)
             ? crypto.randomUUID()
             : Date.now() + "_" + Math.random();
@@ -3002,6 +3135,22 @@ function sendMessage() {
         messageInputContainer.classList.remove('centered');
         chatContainer.classList.add('has-messages');
 
+        // Update header actions visibility
+        try { syncChatHasMessagesUI(); } catch (_) {}
+
+        // Update header actions visibility (desktop share/3-dots, mobile 3-dots)
+        try { syncChatHasMessagesUI(); } catch (_) {}
+
+
+// Ẩn menu giới thiệu khi đã gửi tin nhắn đầu tiên
+try {
+    const unauthTopbar = document.getElementById('unauthTopbar');
+    if (unauthTopbar) {
+        unauthTopbar.classList.add('has-messages');
+    }
+} catch (_) {}
+
+
         const userMessageElement = document.createElement('div');
         userMessageElement.className = 'message user-message';
 
@@ -3127,6 +3276,9 @@ function sendMessage() {
         // ⭐ ĐẢM BẢO: Xóa class 'centered' khi bot trả lời
         messageInputContainer.classList.remove('centered');
         chatContainer.classList.add('has-messages');
+
+        // Update header actions visibility
+        try { syncChatHasMessagesUI(); } catch (_) {}
 
         const botMessageElement = document.createElement('div');
         botMessageElement.className = 'message bot-message';
@@ -4497,6 +4649,20 @@ logToGoogle({
     const lawsRailBtn = document.getElementById("lawsRailBtn");
     const lawsBtn = document.getElementById("lawsBtn");
 
+    // Top-right chat actions (Share + 3-dots)
+    const chatShareBtn = document.getElementById("chatShareBtn");
+    const chatMoreBtn = document.getElementById("chatMoreBtn");
+    const mobileChatMoreBtn = document.getElementById("mobileChatMoreBtn");
+
+    // Track whether the current view is an active chat (has at least one message).
+    // This drives the visibility of top-right actions on desktop and the 3-dots on mobile.
+    function syncChatHasMessagesUI() {
+        try {
+            const has = !!(chatContainer && chatContainer.classList && chatContainer.classList.contains("has-messages"));
+            document.body.classList.toggle("chat-has-messages", has);
+        } catch (_) {}
+    }
+
     function openSidebarPanel() {
         if (!sidebarPanel) return;
         sidebarPanel.classList.add("open");
@@ -4555,30 +4721,44 @@ logToGoogle({
         }
     }
 
-    // Guest sessions: vẫn lưu lịch sử trên thiết bị ngay cả khi chưa đăng nhập.
-    // Khi đăng nhập, lịch sử tài khoản sẽ được đồng bộ đa thiết bị thông qua backend.
-    const GUEST_ID_KEY = "chatiip_guest_id";
-    function getOrCreateGuestId() {
-        try {
-            let gid = localStorage.getItem(GUEST_ID_KEY);
-            if (!gid) {
-                gid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "_" + Math.random());
-                localStorage.setItem(GUEST_ID_KEY, gid);
-            }
-            return gid;
-        } catch (_) {
-            return "guest";
-        }
-    }
-
+    // NOTE: Theo yêu cầu: khi CHƯA đăng nhập thì KHÔNG lưu lịch sử.
+    // Lịch sử chỉ có khi user đã đăng nhập.
     function getHistoryOwnerId() {
         const u = getLoggedInUser();
-        return (u && u.id) ? u.id : getOrCreateGuestId();
+        return (u && u.id) ? u.id : "";
     }
 
     function isLoggedIn() {
         const u = getLoggedInUser();
         return !!(u && u.id);
+    }
+
+    // ---------- Auth-based layout ----------
+    const unauthRefreshBtn = document.getElementById("unauthRefreshBtn");
+
+    function applyAuthLayout() {
+        try {
+            const loggedIn = isLoggedIn();
+
+            if (!loggedIn) {
+                document.body.classList.add("unauth-mode");
+                document.documentElement.classList.add("unauth-mode");
+                try { closeSidebarPanel(); } catch (_) {}
+
+                // Ensure guest does not rehydrate old chat on reload
+                try { clearBackendSessionId(); } catch (_) {}
+                try { localStorage.removeItem("chatiip_chat_cache_pending_v3"); } catch (_) {}
+            } else {
+                document.body.classList.remove("unauth-mode");
+                document.documentElement.classList.remove("unauth-mode");
+            }
+        } catch (_) {}
+    }
+
+    if (unauthRefreshBtn) {
+        unauthRefreshBtn.addEventListener("click", () => {
+            try { window.location.reload(); } catch (_) { window.location.href = window.location.href; }
+        });
     }
 
     function historyKey(userId) {
@@ -4591,6 +4771,7 @@ logToGoogle({
 
     function readSessions(userId) {
         try {
+            if (!userId) return [];
             const raw = localStorage.getItem(historyKey(userId));
             const list = safeJsonParse(raw || "[]", []);
             return Array.isArray(list) ? list : [];
@@ -4600,7 +4781,10 @@ logToGoogle({
     }
 
     function writeSessions(userId, list) {
-        try { localStorage.setItem(historyKey(userId), JSON.stringify(list || [])); } catch (_) {}
+        try {
+            if (!userId) return;
+            localStorage.setItem(historyKey(userId), JSON.stringify(list || []));
+        } catch (_) {}
     }
 
     // ---------- Server sync (multi-device) ----------
@@ -4770,6 +4954,12 @@ logToGoogle({
         const ownerId = getHistoryOwnerId();
         const loggedIn = !!(user && user.id);
 
+        // When not logged in: no sidebar history (per requirement)
+        if (!loggedIn) {
+            chatHistoryList.innerHTML = `<div class="sidebar-empty">Đăng nhập để xem lịch sử chat.</div>`;
+            return;
+        }
+
         const q = String(filterText || "").trim().toLowerCase();
         const activeId = String(getBackendSessionId() || "");
 
@@ -4797,10 +4987,7 @@ logToGoogle({
         const hasPending = !!(pending && !activeId);
 
         if (!list.length && !hasPending) {
-            const note = loggedIn
-                ? ""
-                : `<div class="sidebar-empty" style="margin-bottom:10px;">Lịch sử đang được lưu trên thiết bị này. Đăng nhập để đồng bộ giữa điện thoại và máy tính.</div>`;
-            chatHistoryList.innerHTML = note + `<div class="sidebar-empty">${q ? "Không tìm thấy lịch sử phù hợp." : "Chưa có lịch sử chat."}</div>`;
+            chatHistoryList.innerHTML = `<div class="sidebar-empty">${q ? "Không tìm thấy lịch sử phù hợp." : "Chưa có lịch sử chat."}</div>`;
             return;
         }
 
@@ -4820,11 +5007,7 @@ logToGoogle({
             `
             : "";
 
-        const noteTop = loggedIn
-            ? ""
-            : `<div class="sidebar-empty" style="margin-bottom:10px;">Lịch sử đang được lưu trên thiết bị này. Đăng nhập để đồng bộ giữa điện thoại và máy tính.</div>`;
-
-        chatHistoryList.innerHTML = noteTop + pendingHtml + list.map(item => {
+        chatHistoryList.innerHTML = pendingHtml + list.map(item => {
             const title = formatHistoryTitle(item.title);
             const preview = String(item.preview || "").trim();
             const sub = preview ? (preview.length > 70 ? preview.slice(0, 70) + "…" : preview) : "";
@@ -4845,6 +5028,24 @@ logToGoogle({
             `;
         }).join("");
     }
+
+    // Init layout + history based on auth state, and re-sync whenever auth changes.
+    applyAuthLayout();
+    try { syncChatHasMessagesUI(); } catch (_) {}
+    try {
+        const loggedInNow = (typeof isLoggedIn === "function") ? isLoggedIn() : false;
+        if (!loggedInNow && shouldAlwaysShowLoginPrompt()) {
+            openLoginPromptModal();
+        }
+    } catch (_) {}
+
+    try { updateHistoryUI(""); } catch (_) {}
+
+    window.addEventListener("chatiip:auth-changed", () => {
+        try { applyAuthLayout(); } catch (_) {}
+        try { syncChatHasMessagesUI(); } catch (_) {}
+        try { updateHistoryUI(historySearchInput ? historySearchInput.value : ""); } catch (_) {}
+    });
 
     // ---------- Mini toast (local, lightweight) ----------
     function showToast(message, type) {
@@ -5155,6 +5356,195 @@ logToGoogle({
         historyMenuEl.setAttribute("aria-hidden", "true");
     }
 
+
+    // ---------- Chat header menu (top-right 3 dots) ----------
+    let chatMenuEl = null;
+    let chatMenuSid = null;
+
+    async function shareSessionLink(sid) {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set("sid", String(sid));
+            const shareUrl = url.toString();
+            if (navigator.share) {
+                await navigator.share({ title: "ChatIIP", url: shareUrl });
+            } else {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast("Đã sao chép liên kết chia sẻ.", "success");
+            }
+        } catch (_) {
+            showToast("Không thể chia sẻ lúc này.", "error");
+        }
+    }
+
+    function ensureChatMenu() {
+        if (chatMenuEl) return chatMenuEl;
+        const el = document.createElement("div");
+        el.id = "chatContextMenu";
+        el.className = "history-menu";
+        el.setAttribute("aria-hidden", "true");
+        el.innerHTML = `
+          <!-- Mobile-only: Share lives inside the 3-dots menu -->
+          <button class="history-menu-item" type="button" data-act="share" id="chatMenuShareItem" style="display:none">
+            <i class="fas fa-arrow-up-from-bracket"></i>
+            <span>Chia sẻ</span>
+          </button>
+          <button class="history-menu-item" type="button" data-act="pin">
+            <i class="fas fa-thumbtack"></i>
+            <span id="chatMenuPinText">Ghim đoạn chat</span>
+          </button>
+          <button class="history-menu-item" type="button" data-act="archive">
+            <i class="fas fa-box-archive"></i>
+            <span>Lưu trữ</span>
+          </button>
+          <div class="history-menu-sep"></div>
+          <button class="history-menu-item danger" type="button" data-act="delete">
+            <i class="fas fa-trash"></i>
+            <span>Xóa</span>
+          </button>
+        `;
+        document.body.appendChild(el);
+        chatMenuEl = el;
+
+        el.addEventListener("click", async (e) => {
+            const btn = e.target.closest("button.history-menu-item");
+            if (!btn) return;
+            const act = btn.getAttribute("data-act");
+            const sid = chatMenuSid;
+            closeChatMenu();
+            if (!sid) return;
+
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "");
+            const loggedIn = (typeof isLoggedIn === "function") ? isLoggedIn() : !!getLoggedInUser()?.id;
+            if (!ownerId) {
+                showToast("Vui lòng đăng nhập để dùng chức năng này.", "info");
+                return;
+            }
+
+            if (act === "pin") {
+                const list = readSessions(ownerId);
+                const cur = list.find(s => String(s.sessionId) === String(sid));
+                const nextPinned = !(cur && cur.pinned);
+                upsertSession(ownerId, sid, { pinned: nextPinned });
+                if (loggedIn) { try { upsertSessionToServer(sid, { pinned: nextPinned }); } catch (_) {} }
+                updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+                return;
+            }
+
+            if (act === "share") {
+                // Only exposed on mobile per requirement
+                try { await shareSessionLink(sid); } catch (_) { showToast("Không thể chia sẻ lúc này.", "error"); }
+                return;
+            }
+
+            if (act === "archive") {
+                upsertSession(ownerId, sid, { archived: true });
+                if (loggedIn) { try { upsertSessionToServer(sid, { archived: true }); } catch (_) {} }
+                showToast("Đã lưu trữ đoạn chat.", "success");
+
+                // If archiving the currently opened chat, go back to the welcome/portal state
+                try {
+                    if (String(getBackendSessionId() || "") === String(sid)) startNewChatUI();
+                    else updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+                } catch (_) {}
+                return;
+            }
+
+            if (act === "delete") {
+                // Xóa giống menu 3-chấm trong lịch sử
+                removeSession(ownerId, sid);
+                if (loggedIn) { try { upsertSessionToServer(sid, { deleted: true }); } catch (_) {} }
+                showToast("Đã xóa đoạn chat.", "success");
+
+                // If deleting the currently opened chat, go back to the welcome/portal state
+                try {
+                    if (String(getBackendSessionId() || "") === String(sid)) startNewChatUI();
+                    else updateHistoryUI(historySearchInput ? historySearchInput.value : "");
+                } catch (_) {}
+                return;
+            }
+        });
+
+        // close on outside click
+        document.addEventListener("click", (e) => {
+            if (!chatMenuEl || chatMenuEl.getAttribute("aria-hidden") === "true") return;
+            const inside = e.target.closest("#chatContextMenu");
+            const moreBtn = e.target.closest("#chatMoreBtn") || e.target.closest("#mobileChatMoreBtn");
+            if (!inside && !moreBtn) closeChatMenu();
+        });
+
+        window.addEventListener("resize", closeChatMenu);
+        return chatMenuEl;
+    }
+
+    function openChatMenu(anchorBtn) {
+        const sid = getBackendSessionId();
+        if (!sid) {
+            showToast("Chưa có đoạn chat để thao tác. Hãy gửi một tin nhắn trước.", "info");
+            return;
+        }
+
+        const menu = ensureChatMenu();
+        chatMenuSid = sid;
+
+        // Update pin label
+        try {
+            const ownerId = (typeof getHistoryOwnerId === "function") ? getHistoryOwnerId() : (getLoggedInUser()?.id || "");
+            const list = ownerId ? readSessions(ownerId) : [];
+            const cur = list.find(s => String(s.sessionId) === String(sid));
+            const t = menu.querySelector("#chatMenuPinText");
+            if (t) t.textContent = (cur && cur.pinned) ? "Bỏ ghim" : "Ghim đoạn chat";
+        } catch (_) {}
+
+        // Mobile: include Share inside the 3-dots. Desktop keeps Share as a separate top-right button.
+        try {
+            const isMobileMenu = anchorBtn && anchorBtn.id === "mobileChatMoreBtn";
+            const shareItem = menu.querySelector("#chatMenuShareItem");
+            if (shareItem) shareItem.style.display = isMobileMenu ? "flex" : "none";
+        } catch (_) {}
+
+        const r = anchorBtn.getBoundingClientRect();
+        const mw = 240;
+        // Slightly taller on mobile because we also show the Share row
+        const mh = (anchorBtn && anchorBtn.id === "mobileChatMoreBtn") ? 260 : 220;
+        let left = Math.min(r.left, window.innerWidth - mw - 12);
+        let top = Math.min(r.bottom + 8, window.innerHeight - mh - 12);
+        if (top < 12) top = 12;
+        if (left < 12) left = 12;
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+        menu.classList.add("open");
+        menu.setAttribute("aria-hidden", "false");
+    }
+
+    function closeChatMenu() {
+        if (!chatMenuEl) return;
+        chatMenuSid = null;
+        chatMenuEl.classList.remove("open");
+        chatMenuEl.setAttribute("aria-hidden", "true");
+    }
+
+    // Wire up Share + More buttons (Share is desktop-only; on mobile Share is inside the 3-dots menu)
+    function handleChatShare() {
+        const sid = getBackendSessionId();
+        if (!sid) {
+            showToast("Chưa có đoạn chat để chia sẻ. Hãy gửi một tin nhắn trước.", "info");
+            return;
+        }
+        shareSessionLink(sid);
+    }
+
+    if (chatShareBtn) chatShareBtn.addEventListener("click", handleChatShare);
+
+    function handleChatMore(e) {
+        const btn = e && e.currentTarget ? e.currentTarget : null;
+        if (!btn) return;
+        openChatMenu(btn);
+    }
+
+    if (chatMoreBtn) chatMoreBtn.addEventListener("click", handleChatMore);
+    if (mobileChatMoreBtn) mobileChatMoreBtn.addEventListener("click", handleChatMore);
+
     function archiveSession(userId, sid, archived) {
         upsertSession(userId, sid, { archived: !!archived });
     }
@@ -5175,6 +5565,19 @@ logToGoogle({
                 }
                 messageInputContainer.classList.add('centered');
                 chatContainer.classList.remove('has-messages');
+
+                // Update header actions visibility
+                try { syncChatHasMessagesUI(); } catch (_) {}
+
+
+// Hiện lại menu giới thiệu (nếu đang ở chế độ chưa đăng nhập)
+try {
+    const unauthTopbar = document.getElementById('unauthTopbar');
+    if (unauthTopbar) {
+        unauthTopbar.classList.remove('has-messages');
+    }
+} catch (_) {}
+
             } catch (_) {}
         }
     }
@@ -5301,12 +5704,20 @@ function ensureActiveSessionIsTracked() {
         messageInputContainer.classList.add('centered');
         chatContainer.classList.remove('has-messages');
 
+        // Update header actions visibility
+        try { syncChatHasMessagesUI(); } catch (_) {}
+
         // Xóa text đang nhập
         messageInput.value = "";
 
         closeSidebarPanel();
         updateHistoryUI(historySearchInput ? historySearchInput.value : "");
     }
+
+    // Expose reset handler for global idle timer (auth.js)
+    try {
+        window.__CHATIIP_RESET_TO_WELCOME = startNewChatUI;
+    } catch (_) {}
 
     if (newChatBtn) newChatBtn.addEventListener("click", startNewChatUI);
     if (newChatRailBtn) newChatRailBtn.addEventListener("click", startNewChatUI);
