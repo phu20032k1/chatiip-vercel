@@ -303,6 +303,108 @@ function buildProvinceIndex(geojson) {
 }
 
 
+// ====================  PROVINCE BBOX + TABLE EXTRACTION HELPERS  ====================
+function __coordsWalk(coords, cb) {
+    if (!coords) return;
+    if (typeof coords[0] === "number" && typeof coords[1] === "number") {
+        cb(coords[0], coords[1]);
+        return;
+    }
+    if (Array.isArray(coords)) {
+        for (const c of coords) __coordsWalk(c, cb);
+    }
+}
+
+function getFeatureBbox(feature) {
+    try {
+        const geom = feature?.geometry;
+        if (!geom) return null;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        __coordsWalk(geom.coordinates, (x, y) => {
+            const xx = Number(x), yy = Number(y);
+            if (!isFinite(xx) || !isFinite(yy)) return;
+            if (xx < minX) minX = xx;
+            if (yy < minY) minY = yy;
+            if (xx > maxX) maxX = xx;
+            if (yy > maxY) maxY = yy;
+        });
+        if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) return null;
+        return [[minX, minY], [maxX, maxY]];
+    } catch (_) {
+        return null;
+    }
+}
+
+function fitToProvinceByNames(map, provGeo, provinces) {
+    try {
+        if (!map || !provGeo) return false;
+        const list = Array.isArray(provinces) ? provinces : (provinces ? [provinces] : []);
+        const mapped = list.map(p => mapProvinceNameToGeo(p)).filter(Boolean);
+        if (!mapped.length) return false;
+
+        const feats = (provGeo.features || []).filter(f => mapped.includes(String(f?.properties?.NAME_1 || '').trim()));
+        if (!feats.length) return false;
+
+        let bounds = null;
+        for (const f of feats) {
+            const bb = getFeatureBbox(f);
+            if (!bb) continue;
+            if (!bounds) bounds = bb;
+            else {
+                bounds = [
+                    [Math.min(bounds[0][0], bb[0][0]), Math.min(bounds[0][1], bb[0][1])],
+                    [Math.max(bounds[1][0], bb[1][0]), Math.max(bounds[1][1], bb[1][1])]
+                ];
+            }
+        }
+        if (!bounds) return false;
+        map.fitBounds(bounds, { padding: 48, maxZoom: 9.5, duration: 650 });
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function extractIipNamesFromRenderedTable(botEl) {
+    try {
+        if (!botEl) return [];
+        const tables = botEl.querySelectorAll('.data-table');
+        if (!tables || !tables.length) return [];
+
+        for (const tbl of tables) {
+            const thead = tbl.querySelector('thead');
+            const tbody = tbl.querySelector('tbody');
+            if (!thead || !tbody) continue;
+
+            const headers = Array.from(thead.querySelectorAll('th')).map(th => normalizeViText(th.textContent || ''));
+            if (!headers.length) continue;
+
+            // Heuristic: table must look like KCN/CCN list
+            let nameCol = headers.findIndex(h => h.includes('ten') && (h.includes('khu') || h.includes('kcn') || h.includes('cum') || h.includes('ccn')));
+            if (nameCol < 0) {
+                // fallback: second column if table also has address/price-like columns
+                const hasAddr = headers.some(h => h.includes('dia') || h.includes('address'));
+                if (hasAddr && headers.length >= 2) nameCol = 1;
+            }
+            if (nameCol < 0) continue;
+
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const names = [];
+            for (const tr of rows) {
+                const tds = tr.querySelectorAll('td');
+                if (!tds || tds.length <= nameCol) continue;
+                const nm = String(tds[nameCol].textContent || '').trim();
+                if (nm) names.push(nm);
+            }
+            if (names.length) return names;
+        }
+        return [];
+    } catch (_) {
+        return [];
+    }
+}
+
+
 // Fallback mapping (hỗ trợ tên tỉnh cũ sau sáp nhập, dùng ngay cả khi chưa load province geojson)
 const PROVINCE_MERGE_FALLBACK = (() => {
     const m = new Map();
@@ -420,39 +522,47 @@ function extractProvincesFromText(question, maxCount = 2) {
 
 function setProvinceHighlightFilter(map, provinces) {
     try {
-        if (!map || !map.getLayer || !map.getLayer('province-highlight')) return;
+        if (!map || !map.getLayer) return;
+        if (!map.getLayer('province-highlight') && !map.getLayer('province-highlight-line')) return;
         const list = Array.isArray(provinces) ? provinces : (provinces ? [provinces] : []);
         const mapped = list.map(p => mapProvinceNameToGeo(p)).filter(Boolean);
 
         if (!mapped.length) {
-            map.setFilter('province-highlight', ['==', ['get', 'NAME_1'], '']);
+            if (map.getLayer('province-highlight')) map.setFilter('province-highlight', ['==', ['get', 'NAME_1'], '']);
+            if (map.getLayer('province-highlight-line')) map.setFilter('province-highlight-line', ['==', ['get', 'NAME_1'], '']);
             return;
         }
-        if (mapped.length === 1) {
-            map.setFilter('province-highlight', ['==', ['get', 'NAME_1'], mapped[0]]);
-            return;
-        }
-        // match nhiều tỉnh
-        map.setFilter('province-highlight', ['in', ['get', 'NAME_1'], ...mapped]);
+        const f = (mapped.length === 1)
+            ? ['==', ['get', 'NAME_1'], mapped[0]]
+            : ['in', ['get', 'NAME_1'], ['literal', mapped]];
+        if (map.getLayer('province-highlight')) map.setFilter('province-highlight', f);
+        if (map.getLayer('province-highlight-line')) map.setFilter('province-highlight-line', f);
     } catch (_) {}
 }
 
 function buildIipListBlockFromFeatures(features, titleText, maxRows = 25) {
     const list = Array.isArray(features) ? features : [];
     const total = list.length;
-    const show = list.slice(0, Math.max(1, maxRows));
+    const show = (maxRows === null || maxRows === undefined || maxRows <= 0 || maxRows === Infinity)
+        ? list
+        : list.slice(0, maxRows);
 
     const rows = show.map((f, idx) => {
         const p = f?.properties || {};
-        const name = escapeHtmlGlobal(String(p.name || ""));
-        const addr = escapeHtmlGlobal(String(p.address || ""));
-        const price = escapeHtmlGlobal(String(p.price || ""));
+        const nameRaw = String(p.name || "");
+        const addrRaw = String(p.address || "");
+        const priceRaw = String(p.price || "");
+        const name = escapeHtmlGlobal(nameRaw);
+        const addr = escapeHtmlGlobal(addrRaw);
+        const price = escapeHtmlGlobal(priceRaw);
+
+        // Dùng ellipsis để tránh xuống dòng xấu (đặc biệt khi layout hẹp/so sánh).
         return `
           <tr>
             <td class="col-stt">${idx + 1}</td>
-            <td>${name || "—"}</td>
-            <td>${addr || "—"}</td>
-            <td class="col-area">${price || "—"}</td>
+            <td><span class="cell-ellipsis" title="${name}">${name || "—"}</span></td>
+            <td><span class="cell-ellipsis" title="${addr}">${addr || "—"}</span></td>
+            <td class="col-area"><span class="cell-ellipsis" title="${price}">${price || "—"}</span></td>
           </tr>
         `;
     }).join("");
@@ -512,7 +622,7 @@ function ensureCompareListsInBubble(botEl, geoFeatures, provinces) {
         canonList.forEach((canon, i) => {
             const real = provs[i] || canon;
             const arr = byProv.get(canon) || [];
-            const html = buildIipListBlockFromFeatures(arr, `Danh sách KCN: ${real} (${arr.length})`, 22);
+            const html = buildIipListBlockFromFeatures(arr, `Danh sách KCN: ${real} (${arr.length})`, 0);
             const tmp = document.createElement("div");
             tmp.innerHTML = html;
             wrap.appendChild(tmp.firstElementChild);
@@ -662,10 +772,34 @@ function filterFeaturesForQuestion(question, geojson) {
         ? features.filter(f => canonList.includes(mapProvinceNameToGeo(String(f?.properties?.province || "").trim())))
         : features.slice();
 
-    // lấy token tìm kiếm (trừ stopwords) để match tên/địa chỉ
+    // lấy token tìm kiếm (trừ stopwords + từ thuộc tên tỉnh) để match tên/địa chỉ
     const t = normalizeViText(question);
-    const stop = new Set(["khu", "cong", "nghiep", "cum", "kcn", "ccn", "gia", "thue", "dat", "nha", "xuong", "tai", "o", "co", "la", "nhung", "bao", "nhieu", "so", "sanh", "gan", "nhat", "voi", "vs"]);
-    const tokens = t.split(" ").filter(w => w.length >= 4 && !stop.has(w)).slice(0, 6);
+
+    // stopwords cơ bản + từ khóa so sánh
+    const stop = new Set(["khu","cong","nghiep","cum","kcn","ccn","khucongnghiep","cumcongnghiep",
+        "tai","o","thuoc","tinh","tp","thanh","pho","thi","xa","huyen","quan",
+        "gia","giá","usd","vnd","m2","m²","nam","năm","thang","tháng",
+        "bao","nhieu","so","sanh","so sánh","gan","nhat","voi","vs","va","và","so","sánh","theo"]);
+
+    // loại bỏ từ thuộc tên tỉnh đã nhận diện (tránh filter giao nhau khi so sánh 2 tỉnh)
+    const provWordSet = new Set();
+    try {
+        const provNames = (provinces && provinces.length ? provinces : (province ? [province] : []))
+            .map(p => normalizeViText(String(p || "")))
+            .filter(Boolean);
+        for (const pn of provNames) {
+            pn.split(" ").forEach(w => { if (w && w.length >= 3) provWordSet.add(w); });
+        }
+        // cũng loại bỏ các từ phổ biến hay đi kèm tên tỉnh
+        ["tinh","tp","thanh","pho","ba","br","riau"].forEach(w => provWordSet.add(w));
+    } catch (_) {}
+
+    const tokens = t.split(" ")
+        .filter(w => w.length >= 4 && !stop.has(w) && !provWordSet.has(w))
+        .slice(0, 6);
+
+    // nếu chỉ còn token rất chung chung (hoặc rỗng), bỏ qua filter token
+
 
     if (tokens.length) {
         filtered = filtered.filter(f => {
@@ -714,27 +848,24 @@ function createIipMapCard({ title, subtitle }) {
     const btnFit = document.createElement("button");
     btnFit.className = "iip-map-btn";
     btnFit.type = "button";
-    btnFit.innerHTML = '<i class="fa-solid fa-maximize"></i> Vừa khít';
+    btnFit.innerHTML = '<i class="fa-solid fa-maximize"></i> Hightlight tỉnh';
 
-    const btnTerrain = document.createElement("button");
-    btnTerrain.className = "iip-map-btn";
-    btnTerrain.type = "button";
-    btnTerrain.innerHTML = '<i class="fa-solid fa-map"></i> Nền thường';
-    btnTerrain.dataset.mode = "osm";
+    // Basemap toggle removed per request (no Satellite mode).
+    const btnTerrain = null;
 
     const btnProvinces = document.createElement("button");
     btnProvinces.className = "iip-map-btn";
     btnProvinces.type = "button";
-    btnProvinces.innerHTML = '<i class="fa-solid fa-layer-group"></i> Tắt tỉnh';
+    btnProvinces.innerHTML = '<i class="fa-solid fa-layer-group"></i> Ranh giới tỉnh';
     btnProvinces.dataset.on = "1";
 
     const btnToggle = document.createElement("button");
     btnToggle.className = "iip-map-btn";
     btnToggle.type = "button";
-    btnToggle.innerHTML = '<i class="fa-solid fa-down-left-and-up-right-to-center"></i> Thu gọn';
+    btnToggle.innerHTML = '<i class="fa-solid fa-down-left-and-up-right-to-center"></i> ';
 
     actions.appendChild(btnFit);
-    actions.appendChild(btnTerrain);
+    // no basemap button
     actions.appendChild(btnProvinces);
     actions.appendChild(btnToggle);
 
@@ -811,7 +942,7 @@ function setBasemapMode(map, mode = "osm") {
 function setProvinceLayerVisible(map, visible) {
     try {
         const v = visible ? "visible" : "none";
-        ["province-fill", "province-line", "province-highlight", "province-label"].forEach(id => {
+        ["province-fill", "province-line", "province-highlight", "province-highlight-line", "province-label"].forEach(id => {
             if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", v);
         });
     } catch (_) {}
@@ -950,10 +1081,11 @@ function ensureMapIcons(map) {
     return Promise.all(tasks);
 }
 
-async function addProvinceLayers(map, selectedProvinceText = "") {
+async function addProvinceLayers(map, selectedProvinces = "") {
     try {
         const provGeo = await getProvinceGeojson().catch(() => null);
         if (!provGeo) return;
+        try { map.__provGeo = provGeo; } catch (_) {}
 
         const sourceId = 'provinces';
         if (!map.getSource(sourceId)) {
@@ -987,7 +1119,20 @@ async function addProvinceLayers(map, selectedProvinceText = "") {
                 type: 'fill',
                 source: sourceId,
                 filter: ['==', ['get', 'NAME_1'], ''],
-                paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12, 'fill-outline-color': '#2563eb' },
+                // Stronger highlight for better visibility.
+                paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.38, 'fill-outline-color': '#1d4ed8' },
+                layout: { visibility: 'none' }
+            });
+        }
+
+        // add a bold outline above highlight fill
+        if (!map.getLayer('province-highlight-line')) {
+            map.addLayer({
+                id: 'province-highlight-line',
+                type: 'line',
+                source: sourceId,
+                filter: ['==', ['get', 'NAME_1'], ''],
+                paint: { 'line-color': '#1d4ed8', 'line-width': 3 },
                 layout: { visibility: 'none' }
             });
         }
@@ -1009,11 +1154,18 @@ async function addProvinceLayers(map, selectedProvinceText = "") {
             });
         }
 
-        // highlight nếu có tỉnh trong câu hỏi
-        const mapped = mapProvinceNameToGeo(selectedProvinceText);
-        if (mapped && map.getLayer('province-highlight')) {
-            map.setFilter('province-highlight', ['==', ['get', 'NAME_1'], mapped]);
-        }
+        // highlight nếu có tỉnh trong câu hỏi (1 hoặc nhiều tỉnh)
+        try {
+            const list = Array.isArray(selectedProvinces) ? selectedProvinces : (selectedProvinces ? [selectedProvinces] : []);
+            const mapped = list.map(p => mapProvinceNameToGeo(p)).filter(Boolean);
+            if (mapped.length && map.getLayer('province-highlight')) {
+                const f = (mapped.length === 1)
+            ? ['==', ['get', 'NAME_1'], mapped[0]]
+            : ['in', ['get', 'NAME_1'], ['literal', mapped]];
+                map.setFilter('province-highlight', f);
+                if (map.getLayer('province-highlight-line')) map.setFilter('province-highlight-line', f);
+            }
+        } catch (_) {}
 
     } catch (e) {
         console.warn('addProvinceLayers error', e);
@@ -1064,7 +1216,15 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
         // Province layer (tắt mặc định)
         await addProvinceLayers(map, meta?.province || "");
         // highlight (1 hoặc nhiều tỉnh)
-        setProvinceHighlightFilter(map, meta?.provinces || meta?.province || "");
+        const __pvsForHl = meta?.provinces || meta?.province || "";
+        setProvinceHighlightFilter(map, __pvsForHl);
+        // Re-apply once after first idle (Mapbox đôi khi render chậm khi DOM/layout thay đổi).
+        try {
+            map.once("idle", () => {
+                try { setProvinceLayerVisible(map, true); } catch (_) {}
+                try { setProvinceHighlightFilter(map, __pvsForHl); } catch (_) {}
+            });
+        } catch (_) {}
         // Bật sẵn lớp "nền tỉnh"
         setProvinceLayerVisible(map, true);
         addIslandsLabels(map);
@@ -1188,8 +1348,15 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
         map.on("mouseenter", "points", () => map.getCanvas().style.cursor = "pointer");
         map.on("mouseleave", "points", () => map.getCanvas().style.cursor = "");
 
-        // fit bounds
-        fitBoundsToFeatures(map, data.features);
+        // fit bounds: ưu tiên zoom theo ranh giới tỉnh nếu user hỏi theo tỉnh
+        try {
+            const provQuery = (meta?.provinces && meta.provinces.length) ? meta.provinces : (meta?.province || "");
+            const hasProv = Array.isArray(provQuery) ? provQuery.length : Boolean(provQuery);
+            const ok = hasProv ? fitToProvinceByNames(map, map.__provGeo, provQuery) : false;
+            if (!ok) fitBoundsToFeatures(map, data.features);
+        } catch (_) {
+            fitBoundsToFeatures(map, data.features);
+        }
     });
 
     mapWrap.__iipMap = map;
@@ -1198,7 +1365,7 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
 
 
 // ✅ Đưa "danh sách + bản đồ" nằm ngang hàng (2 cột) khi có bảng dữ liệu trong bubble
-function tryMakeIipSideBySide(botEl, mapCard) {
+function tryMakeIipSideBySide(botEl, mapCard, question) {
     try {
         if (!botEl || !mapCard) return false;
         const stack = botEl.querySelector(".bot-stack");
@@ -1214,8 +1381,28 @@ function tryMakeIipSideBySide(botEl, mapCard) {
         // chỉ áp dụng khi trong bubble có bảng/thẻ dữ liệu (data-block)
         if (!bubble.querySelector(".data-block")) return false;
 
+        // chỉ bật layout 2 cột khi thực sự có so sánh >= 2 tỉnh
+        try{
+            const provs = extractProvincesFromText(String(question || ""), 2) || [];
+            if (!Array.isArray(provs) || provs.filter(Boolean).length < 2) return false;
+        }catch(_){
+            return false;
+        }
+
         const wrap = document.createElement("div");
         wrap.className = "iip-side-by-side";
+        // ✅ Compare (>=2 tỉnh): xếp dọc để map full-width ngang bảng
+        try {
+            const __isCompare = Array.isArray(meta?.provinces) && meta.provinces.filter(Boolean).length >= 2;
+            if (__isCompare) wrap.classList.add('iip-vertical');
+        } catch (_) {}
+
+        // nếu có quá nhiều bảng/thẻ dữ liệu (>=3), cho phép cột trái cuộn để gọn
+        try{
+            const blockCount = bubble.querySelectorAll(".data-block").length;
+            if (blockCount >= 3) wrap.classList.add("iip-many-blocks");
+        }catch(_){ }
+
 
         const left = document.createElement("div");
         left.className = "iip-side-left";
@@ -1265,10 +1452,21 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     const vis = visPre;
     let r = null;
 
+    // Luôn detect tỉnh từ câu hỏi (kể cả khi backend trả về bảng/items)
+    const rAuto = filterFeaturesForQuestion(question, geo);
+
     let features = [];
     let subtitle = "";
 
-    if (vis?.items?.length) {
+    const tableNames = extractIipNamesFromRenderedTable(botEl);
+
+    // Ưu tiên nhất: nếu trong bubble đã có bảng danh sách KCN/CCN → map theo đúng bảng để đồng bộ số lượng
+    if (tableNames && tableNames.length) {
+        features = matchFeaturesByItemNames(tableNames, geo.features);
+        subtitle = features.length
+            ? `Hiển thị ${features.length}/${tableNames.length} khu công nghiệp từ bảng kết quả.`
+            : "Không match được theo bảng — hiển thị theo truy vấn.";
+    } else     if (vis?.items?.length) {
         features = matchFeaturesByItemNames(vis.items, geo.features);
         subtitle = features.length
             ? `Hiển thị ${features.length} khu công nghiệp từ kết quả trả lời.`
@@ -1276,7 +1474,7 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     }
 
     if (!features.length) {
-        r = filterFeaturesForQuestion(question, geo);
+        r = rAuto;
         features = r.filtered;
         {
             const provs = Array.isArray(r?.provinces) ? r.provinces.filter(Boolean) : [];
@@ -1302,9 +1500,18 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     const actions = botEl.querySelector(".message-actions");
 
     // ✅ So sánh 2 tỉnh: luôn chèn danh sách (bảng) nếu backend không trả JSON list
-    const __detectedProvinces = (Array.isArray(r?.provinces) && r.provinces.length)
-        ? r.provinces.filter(Boolean)
-        : ((r?.province ? [r.province] : (vis?.province ? [vis.province] : [])).filter(Boolean));
+    const __detectedProvinces = (() => {
+        const out = [];
+        const push = (p) => {
+            const v = String(p || '').trim();
+            if (!v) return;
+            if (!out.includes(v)) out.push(v);
+        };
+        try { (rAuto?.provinces || []).forEach(push); } catch (_) {}
+        try { (r?.provinces || []).forEach(push); } catch (_) {}
+        try { if (vis?.province) push(vis.province); } catch (_) {}
+        return out;
+    })();
 
     try {
         if (__detectedProvinces.length >= 2) {
@@ -1331,9 +1538,9 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     } catch (_) {}
 
     // ✅ Đưa danh sách và bản đồ nằm ngang hàng (desktop)
-    try { tryMakeIipSideBySide(botEl, card); } catch (_) {}
+    try { tryMakeIipSideBySide(botEl, card, question); } catch (_) {}
 
-    const map = renderIipMap(mapWrap, geo, features, { question, province: r?.province || vis?.province || "", provinces: __detectedProvinces });
+    const map = renderIipMap(mapWrap, geo, features, { question, province: (rAuto?.province || r?.province || vis?.province || ""), provinces: __detectedProvinces });
 
     btnFit?.addEventListener("click", () => {
         try {
@@ -1355,14 +1562,7 @@ async function appendIndustrialMapToBot(botEl, question, data) {
         }
     });
 
-    btnTerrain?.addEventListener("click", () => {
-        if (!map) return;
-        const current = btnTerrain.dataset.mode || "osm";
-        const next = current === "osm" ? "sat" : "osm";
-        btnTerrain.dataset.mode = next;
-        updateBasemapButton(btnTerrain, next);
-        setBasemapMode(map, next);
-    });
+    // Basemap (Satellite) toggle removed.
 
 
 
@@ -4983,4 +5183,3 @@ function ensureActiveSessionIsTracked() {
     }
 
 });
-

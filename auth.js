@@ -469,7 +469,7 @@ function injectAuthUI() {
       bar.className = "auth-bar";
       bar.innerHTML = `
         <button class="auth-btn" id="loginOpenBtn">Đăng nhập</button>
-        <button class="auth-btn secondary" id="registerOpenBtn">Đăng ký</button>
+        <button class="auth-btn secondary" id="registerOpenBtn">Đăng ký miễn phí</button>
         <button class="auth-btn" id="accountOpenBtn" style="display:none;">
           <i class="fas fa-user"></i>
           <span id="accountOpenBtnText">Tài khoản</span>
