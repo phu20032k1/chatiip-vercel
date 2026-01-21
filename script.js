@@ -748,7 +748,10 @@ function focusFeatureOnMap(map, feature) {
         const center = [Number(c[0]), Number(c[1])];
         map.easeTo({ center, zoom: 12, duration: 650 });
 
-        new mapboxgl.Popup({ closeButton: true, closeOnClick: true })
+        // IMPORTANT: Mapbox Popup mặc định sẽ focus sau khi mở (focusAfterOpen=true)
+        // -> với chat container có overflow, thao tác click lặp lại có thể gây "nhảy cuộn" khó chịu.
+        // Tắt focusAfterOpen để tránh browser auto-scroll.
+        new mapboxgl.Popup({ closeButton: true, closeOnClick: true, focusAfterOpen: false })
             .setLngLat(center)
             .setHTML(buildFeaturePopupHtml(feature))
             .addTo(map);
@@ -1236,7 +1239,8 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
                 if (!f) return;
                 const coordinates = (f.geometry?.coordinates || []).slice();
                 const title = f?.properties?.title || f?.properties?.name || "";
-                new mapboxgl.Popup({ closeButton: true, closeOnClick: true })
+                // tránh nhảy cuộn do popup focus
+                new mapboxgl.Popup({ closeButton: true, closeOnClick: true, focusAfterOpen: false })
                     .setLngLat(coordinates)
                     .setHTML(`<div style="font-weight:700;">${escapeHtmlGlobal(String(title))}</div>`)
                     .addTo(map);
@@ -1340,7 +1344,8 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
             if (!f) return;
 
             const coordinates = f.geometry.coordinates.slice();
-            new mapboxgl.Popup({ closeButton: true, closeOnClick: true })
+            // tránh nhảy cuộn do popup focus
+            new mapboxgl.Popup({ closeButton: true, closeOnClick: true, focusAfterOpen: false })
                 .setLngLat(coordinates)
                 .setHTML(buildFeaturePopupHtml(f))
                 .addTo(map);
@@ -1381,21 +1386,31 @@ function tryMakeIipSideBySide(botEl, mapCard, question) {
         // chỉ áp dụng khi trong bubble có bảng/thẻ dữ liệu (data-block)
         if (!bubble.querySelector(".data-block")) return false;
 
-        // chỉ bật layout 2 cột khi thực sự có so sánh >= 2 tỉnh
-        try{
-            const provs = extractProvincesFromText(String(question || ""), 2) || [];
-            if (!Array.isArray(provs) || provs.filter(Boolean).length < 2) return false;
-        }catch(_){
-            return false;
+        // Chỉ bật layout side-by-side khi truy vấn thực sự có 1 tỉnh hoặc so sánh >=2 tỉnh.
+        // - So sánh (>=2 tỉnh): xếp dọc để map full-width ngang bảng (đúng yêu cầu trước đó)
+        // - 1 tỉnh: bảng + map nằm cạnh nhau (không làm hỏng bảng, giữ overflow)
+        let _provs2 = [];
+        let _prov1 = "";
+        try {
+            _provs2 = (extractProvincesFromText(String(question || ""), 2) || []).filter(Boolean);
+        } catch (_) {
+            _provs2 = [];
+        }
+        if (_provs2.length < 2) {
+            try { _prov1 = String(extractProvinceFromText(String(question || "")) || "").trim(); } catch (_) { _prov1 = ""; }
+            if (!_prov1) return false;
         }
 
         const wrap = document.createElement("div");
         wrap.className = "iip-side-by-side";
         // ✅ Compare (>=2 tỉnh): xếp dọc để map full-width ngang bảng
-        try {
-            const __isCompare = Array.isArray(meta?.provinces) && meta.provinces.filter(Boolean).length >= 2;
-            if (__isCompare) wrap.classList.add('iip-vertical');
-        } catch (_) {}
+        if (_provs2.length >= 2) {
+            // ✅ Compare (>=2 tỉnh): layout 2 cột (bảng bên trái, map bên phải)
+            wrap.classList.add('iip-compare');
+        } else {
+            // ✅ 1 tỉnh: side-by-side (table + map cạnh nhau)
+            wrap.classList.add('iip-single');
+        }
 
         // nếu có quá nhiều bảng/thẻ dữ liệu (>=3), cho phép cột trái cuộn để gọn
         try{
@@ -1510,6 +1525,8 @@ async function appendIndustrialMapToBot(botEl, question, data) {
         try { (rAuto?.provinces || []).forEach(push); } catch (_) {}
         try { (r?.provinces || []).forEach(push); } catch (_) {}
         try { if (vis?.province) push(vis.province); } catch (_) {}
+        // Fallback: trích xuất tỉnh trực tiếp từ câu hỏi để đảm bảo highlight đủ khi so sánh
+        try { (extractProvincesFromText(String(question || ""), 2) || []).forEach(push); } catch (_) {}
         return out;
     })();
 
@@ -1588,26 +1605,92 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     // ✅ Click vào dòng trong bảng/thẻ để focus điểm trên bản đồ
     try {
         if (map) {
+            // ✅ Helper: cuộn (smooth) để đưa map của *đoạn chat hiện tại* vào khung nhìn
+            // - Hoạt động cả desktop & mobile
+            // - Tự mở map nếu đang thu gọn
+            const __scrollMapIntoView = () => {
+                try {
+                    // Map card của đúng message hiện tại
+                    const targetCard = card || botEl.querySelector(".iip-map-card") || mapWrap;
+                    if (!targetCard) return;
+
+                    // Nếu map đang thu gọn thì mở lại (để user thấy map khi cuộn đến)
+                    try {
+                        const isHidden = mapWrap && mapWrap.style && mapWrap.style.display === "none";
+                        if (isHidden) {
+                            mapWrap.style.display = "";
+                            if (hint) hint.style.display = "";
+                            if (btnToggle) {
+                                btnToggle.innerHTML = '<i class="fa-solid fa-down-left-and-up-right-to-center"></i> Thu gọn';
+                            }
+                            try { map?.resize?.(); } catch (_) {}
+                        }
+                    } catch (_) {}
+
+                    // Ưu tiên scroll trong khung chatContainer (single scroll container)
+                    const container = document.getElementById("chatContainer") || document.scrollingElement || document.documentElement;
+                    if (!container) return;
+
+                    // Scroll có offset nhẹ để tránh dính sát mép trên
+                    const containerRect = container.getBoundingClientRect ? container.getBoundingClientRect() : null;
+                    const targetRect = targetCard.getBoundingClientRect ? targetCard.getBoundingClientRect() : null;
+                    if (!containerRect || !targetRect) {
+                        try { targetCard.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (_) {}
+                        return;
+                    }
+
+                    // targetTop trong coordinate của container
+                    const currentTop = (typeof container.scrollTop === "number") ? container.scrollTop : 0;
+                    const delta = (targetRect.top - containerRect.top);
+                    const top = Math.max(0, currentTop + delta - 16);
+
+                    try {
+                        container.scrollTo({ top, behavior: "smooth" });
+                    } catch (_) {
+                        container.scrollTop = top;
+                    }
+
+                    // Hiệu ứng highlight nhẹ để user nhận ra map vừa được cuộn tới
+                    try {
+                        targetCard.classList.add("scroll-highlight");
+                        setTimeout(() => { try { targetCard.classList.remove("scroll-highlight"); } catch (_) {} }, 1200);
+                    } catch (_) {}
+                } catch (_) {}
+            };
+
             const rows = botEl.querySelectorAll(".data-table tbody tr");
             rows.forEach(tr => {
                 tr.style.cursor = "pointer";
-                tr.addEventListener("click", () => {
+                tr.addEventListener("click", (ev) => {
+                    try { __markRichInteraction && __markRichInteraction(); } catch (_) {}
+                    try { ev && ev.preventDefault && ev.preventDefault(); } catch (_) {}
+                    try { ev && ev.stopPropagation && ev.stopPropagation(); } catch (_) {}
                     const tds = tr.querySelectorAll("td");
                     const nameCell = tds && tds.length >= 2 ? tds[1] : null;
                     const nm = nameCell ? nameCell.textContent.trim() : "";
                     const f = findBestFeatureByName(nm, geo.features);
+                    // ✅ Cuộn map của message hiện tại ra trước, rồi focus điểm
+                    __scrollMapIntoView();
                     if (f) focusFeatureOnMap(map, f);
                 });
             });
 
-            const cards = botEl.querySelectorAll(".data-card .data-card-title");
-            cards.forEach(node => {
-                node.style.cursor = "pointer";
-                node.addEventListener("click", () => {
-                    const txt = node.textContent || "";
-                    // format: "1. Tên KCN"
-                    const nm = txt.replace(/^\s*\d+\.\s*/, "").trim();
+            // ✅ List (cards view): click vào card hoặc title đều scroll + focus
+            const cards = botEl.querySelectorAll(".data-card");
+            cards.forEach(cardEl => {
+                try { cardEl.style.cursor = "pointer"; } catch (_) {}
+                cardEl.addEventListener("click", (ev) => {
+                    try { __markRichInteraction && __markRichInteraction(); } catch (_) {}
+                    try { ev && ev.preventDefault && ev.preventDefault(); } catch (_) {}
+                    try { ev && ev.stopPropagation && ev.stopPropagation(); } catch (_) {}
+
+                    const titleNode = cardEl.querySelector(".data-card-title");
+                    const txt = (titleNode ? titleNode.textContent : (cardEl.textContent || "")) || "";
+                    // format: "1. Tên KCN" hoặc "Tên KCN"
+                    const nm = String(txt || "").replace(/^\s*\d+\.\s*/, "").trim();
                     const f = findBestFeatureByName(nm, geo.features);
+
+                    __scrollMapIntoView();
                     if (f) focusFeatureOnMap(map, f);
                 });
             });
@@ -1914,12 +1997,44 @@ if (window.visualViewport) {
 // =========================
 // ⭐ FIX QUAN TRỌNG: Auto scroll (single-scroll container)
 // =========================
+let __suspendAutoScrollUntil = 0;
+const AUTO_SCROLL_NEAR_BOTTOM_PX = 160;
+
+function __markRichInteraction() {
+    try { __suspendAutoScrollUntil = Date.now() + 1200; } catch (_) {}
+}
+
+function __isNearBottom() {
+    try {
+        if (!chatContainer) return true;
+        const dist = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+        return dist <= AUTO_SCROLL_NEAR_BOTTOM_PX;
+    } catch (_) {
+        return true;
+    }
+}
+
+// =========================
+// ⭐ FIX QUAN TRỌNG: Auto scroll (single-scroll container)
+// =========================
 function scrollToBottom(behavior = "smooth", force = false) {
     if (!chatContainer) return;
+
     // Khi đang sửa tin nhắn thì KHÔNG tự kéo xuống (đứng yên tại vị trí đang sửa)
     try {
         if (!force && !!chatContainer.querySelector('.user-message.editing')) return;
     } catch (_) {}
+
+    // Khi người dùng đang tương tác với bảng / bản đồ thì KHÔNG auto-scroll (tránh nhảy cuộn khó chịu)
+    try {
+        if (!force && Date.now() < __suspendAutoScrollUntil) return;
+    } catch (_) {}
+
+    // Chỉ auto-scroll nếu đang ở gần đáy (giống ChatGPT). Nếu user đang đọc phía trên thì giữ nguyên.
+    try {
+        if (!force && !__isNearBottom()) return;
+    } catch (_) {}
+
     requestAnimationFrame(() => {
         try {
             chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior });
@@ -1928,6 +2043,93 @@ function scrollToBottom(behavior = "smooth", force = false) {
         }
     });
 }
+
+
+// =========================
+// ⭐ RICH_SCROLL_GUARDS: chặn cuộn lan (scroll chaining) + tạm dừng auto-scroll khi tương tác bảng/bản đồ
+// =========================
+(function RICH_SCROLL_GUARDS() {
+    try {
+        const richSelector = '.data-table-wrap, .data-cards-wrap, .compare-iip-lists, .iip-map-wrap, .mapboxgl-map, .mapboxgl-canvas-container';
+
+        const closestRich = (el) => {
+            try { return el && el.closest ? el.closest(richSelector) : null; } catch (_) { return null; }
+        };
+
+        // Mark interaction to suppress auto-scroll for a short time
+        ['pointerdown', 'touchstart', 'mousedown'].forEach((evt) => {
+            document.addEventListener(evt, (e) => {
+                if (closestRich(e.target)) __markRichInteraction();
+            }, { capture: true, passive: true });
+        });
+
+        // Wheel scroll: only block parent scroll if the inner scroller can actually scroll
+        document.addEventListener('wheel', (e) => {
+            const wrap = closestRich(e.target);
+            if (!wrap) return;
+            __markRichInteraction();
+
+            // Only guard for scrollable regions (tables/cards). Map has its own guards.
+            if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) return;
+
+            const canY = wrap.scrollHeight > wrap.clientHeight + 1;
+            const canX = wrap.scrollWidth > wrap.clientWidth + 1;
+            if (!canY && !canX) return;
+
+            const dy = e.deltaY || 0;
+            const dx = e.deltaX || 0;
+            const useY = Math.abs(dy) >= Math.abs(dx);
+
+            let shouldBlock = false;
+            if (useY && canY) {
+                if ((dy > 0 && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 1) || (dy < 0 && wrap.scrollTop > 0)) {
+                    shouldBlock = true;
+                }
+            } else if (!useY && canX) {
+                if ((dx > 0 && wrap.scrollLeft + wrap.clientWidth < wrap.scrollWidth - 1) || (dx < 0 && wrap.scrollLeft > 0)) {
+                    shouldBlock = true;
+                }
+            }
+
+            if (shouldBlock) {
+                try { e.preventDefault(); } catch (_) {}
+                try { e.stopPropagation(); } catch (_) {}
+            }
+        }, { capture: true, passive: false });
+
+        // Touch move: tương tự wheel (chỉ chặn khi vùng con còn cuộn được)
+        let lastTouchY = 0;
+        document.addEventListener('touchstart', (e) => {
+            const t = e.touches && e.touches[0];
+            if (t) lastTouchY = t.clientY;
+        }, { capture: true, passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            const wrap = closestRich(e.target);
+            if (!wrap) return;
+            __markRichInteraction();
+
+            if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) return;
+
+            const t = e.touches && e.touches[0];
+            if (!t) return;
+            const dy = lastTouchY - t.clientY; // dy>0 means scroll down
+            lastTouchY = t.clientY;
+
+            const canY = wrap.scrollHeight > wrap.clientHeight + 1;
+            if (!canY) return;
+
+            const shouldBlock = (dy > 0 && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 1) || (dy < 0 && wrap.scrollTop > 0);
+            if (shouldBlock) {
+                try { e.preventDefault(); } catch (_) {}
+                try { e.stopPropagation(); } catch (_) {}
+            }
+        }, { capture: true, passive: false });
+
+    } catch (e) {
+        console.warn('RICH_SCROLL_GUARDS init failed', e);
+    }
+})();
 
 
 

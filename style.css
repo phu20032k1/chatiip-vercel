@@ -2539,9 +2539,30 @@ body.theme-dark .img-preview-close{
   align-items: start;
 }
 
+/* Compare mode: bảng (2 tỉnh) bên trái, bản đồ bên phải */
+.iip-side-by-side.iip-compare{
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+}
+
+/* Compare mode: giữ bảng gọn, cuộn trong mỗi bảng */
+.iip-side-by-side.iip-compare .compare-iip-block .data-table-wrap{
+  max-height: 210px; /* ~3-4 dòng + header */
+  overflow: auto;
+}
+.iip-side-by-side.iip-compare .compare-iip-block .data-table{
+  min-width: 760px; /* tránh vỡ cột, cho phép cuộn ngang */
+}
+
+
 /* Compare mode: stack tables and map vertically so map spans full width */
 .iip-side-by-side.iip-vertical{
   grid-template-columns: 1fr;
+}
+
+/* Single-province mode: keep table tidy next to map without breaking layout */
+.iip-side-by-side.iip-single .data-table-wrap,
+.iip-side-by-side.iip-single .data-cards-wrap{
+  max-height: 420px;
 }
 
 
@@ -2578,6 +2599,25 @@ body.theme-dark .img-preview-close{
     max-height: min(65vh, 650px);
   }
 }
+
+/* === Mobile: revert to stacked (original) behavior === */
+@media (max-width: 768px){
+  .iip-side-by-side{
+    display: block;
+  }
+
+  /* On phones, let the page scroll naturally (avoid nested scroll on the left) */
+  .iip-side-left .data-table-wrap,
+  .iip-side-left .data-cards-wrap{
+    max-height: none;
+    overflow: visible;
+  }
+
+  .iip-side-right .iip-map-card{
+    margin-top: 12px;
+  }
+}
+
 
 
 
@@ -2682,4 +2722,19 @@ body.theme-dark .img-preview-close{
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* =========================================
+   UX: highlight nhẹ khi auto-scroll tới bản đồ
+   (desktop + mobile)
+   ========================================= */
+.scroll-highlight{
+    animation: chatiipScrollPulse 1.2s ease-in-out 1;
+}
+
+@keyframes chatiipScrollPulse{
+    0%{ box-shadow: 0 0 0 0 rgba(0,0,0,0.18); }
+    35%{ box-shadow: 0 0 0 6px rgba(0,0,0,0.12); }
+    70%{ box-shadow: 0 0 0 10px rgba(0,0,0,0.06); }
+    100%{ box-shadow: 0 0 0 0 rgba(0,0,0,0); }
 }
