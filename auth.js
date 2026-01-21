@@ -362,35 +362,64 @@
   }
 
   // --------------- Theme ----------------
-  function applyTheme(theme) {
-    const t = theme === "dark" ? "dark" : "light";
-    document.body.classList.toggle("theme-dark", t === "dark");
-    localStorage.setItem(STORAGE_THEME, t);
+  function applyTheme(themePref) {
+    // themePref: 'system' | 'light' | 'dark'
+    const pref = (themePref === "dark" || themePref === "light" || themePref === "system")
+      ? themePref
+      : "system";
+
+    let effective = pref;
+    if (pref === "system") {
+      try {
+        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        effective = prefersDark ? "dark" : "light";
+      } catch (_) {
+        effective = "light";
+      }
+    }
+
+    document.body.classList.toggle("theme-dark", effective === "dark");
+    localStorage.setItem(STORAGE_THEME, pref);
 
     // Update labels if present
     const themeText = document.getElementById("themeToggleText");
     const themeIcon = document.getElementById("themeToggleIcon");
-    if (themeText) themeText.textContent = t === "dark" ? "Tối" : "Sáng";
-    if (themeIcon) themeIcon.className = t === "dark" ? "fas fa-moon" : "fas fa-sun";
+
+    const label = pref === "system" ? "Hệ thống" : (pref === "dark" ? "Tối" : "Sáng");
+    const icon = (effective === "dark") ? "fas fa-moon" : "fas fa-sun";
+
+    if (themeText) themeText.textContent = label;
+    if (themeIcon) themeIcon.className = icon;
 
     const modalThemeText = document.getElementById("modalThemeToggleText");
     const modalThemeIcon = document.getElementById("modalThemeToggleIcon");
-    if (modalThemeText) modalThemeText.textContent = t === "dark" ? "Đang bật: Tối" : "Đang bật: Sáng";
-    if (modalThemeIcon) modalThemeIcon.className = t === "dark" ? "fas fa-moon" : "fas fa-sun";
+    if (modalThemeText) {
+      modalThemeText.textContent = pref === "system"
+        ? `Đang bật: Hệ thống (${effective === "dark" ? "Tối" : "Sáng"})`
+        : `Đang bật: ${label}`;
+    }
+    if (modalThemeIcon) modalThemeIcon.className = icon;
   }
 
   function initThemeFromStorage() {
-    let theme = localStorage.getItem(STORAGE_THEME);
-    if (!theme) {
-      // Nếu chưa chọn thủ công -> theo hệ thống
-      try {
-        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-        theme = prefersDark ? "dark" : "light";
-      } catch (_){
-        theme = "light";
+    const themePref = localStorage.getItem(STORAGE_THEME) || "system";
+    applyTheme(themePref);
+
+    // If the user is in 'system' mode, auto-update when OS theme changes
+    try {
+      if (window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        const handler = () => {
+          const pref = localStorage.getItem(STORAGE_THEME) || "system";
+          if (pref === "system") applyTheme("system");
+        };
+        if (!window.__chatiipThemeMQBound) {
+          window.__chatiipThemeMQBound = true;
+          if (mq.addEventListener) mq.addEventListener("change", handler);
+          else if (mq.addListener) mq.addListener(handler);
+        }
       }
-    }
-    applyTheme(theme);
+    } catch (_) {}
   }
 
   // --------------- UI injection ----------------
@@ -669,7 +698,7 @@ function injectAuthUI() {
               <div class="setting-row">
                 <div class="setting-text">
                   <div class="setting-title">Chủ đề</div>
-                  <div class="setting-desc">Sáng / tối</div>
+                  <div class="setting-desc">Theo hệ thống / sáng / tối</div>
                 </div>
                 <button class="pill-btn" id="modalThemeToggleBtn" type="button">
                   <i id="modalThemeToggleIcon" class="fas fa-sun"></i>
@@ -761,7 +790,7 @@ function injectAuthUI() {
     applyAvatarElement(panelAvatar, user || null);
 
     // Theme should still apply globally
-    const theme = localStorage.getItem(STORAGE_THEME) || "light";
+    const theme = localStorage.getItem(STORAGE_THEME) || "system";
     applyTheme(theme);
   }
 
@@ -777,7 +806,7 @@ function injectAuthUI() {
     const notif = document.getElementById("modalNotifications");
     if (notif) notif.checked = !!settings.notifications;
 
-    const theme = localStorage.getItem(STORAGE_THEME) || "light";
+    const theme = localStorage.getItem(STORAGE_THEME) || "system";
     applyTheme(theme);
   }
 
@@ -1313,10 +1342,13 @@ function injectAuthUI() {
 
     // Sidebar theme
     document.getElementById("themeToggleBtn")?.addEventListener("click", () => {
-      const cur = localStorage.getItem(STORAGE_THEME) || "light";
-      const next = cur === "dark" ? "light" : "dark";
+      const cur = localStorage.getItem(STORAGE_THEME) || "system";
+      const next = (cur === "system") ? "light" : (cur === "light") ? "dark" : "system";
       applyTheme(next);
-      showToast(next === "dark" ? "Đã bật chế độ tối." : "Đã bật chế độ sáng.", "info");
+      const msg = next === "system"
+        ? "Đang dùng chủ đề theo hệ thống."
+        : (next === "dark" ? "Đã bật chế độ tối." : "Đã bật chế độ sáng.");
+      showToast(msg, "info");
     });
 
     // Sidebar logout
@@ -1399,10 +1431,14 @@ function injectAuthUI() {
     });
 
     document.getElementById("modalThemeToggleBtn")?.addEventListener("click", () => {
-      const cur = localStorage.getItem(STORAGE_THEME) || "light";
-      const next = cur === "dark" ? "light" : "dark";
+      const cur = localStorage.getItem(STORAGE_THEME) || "system";
+      const next = (cur === "system") ? "light" : (cur === "light") ? "dark" : "system";
       applyTheme(next);
-      showToast(next === "dark" ? "Đã bật chế độ tối." : "Đã bật chế độ sáng.", "info");
+
+      const msg = next === "system"
+        ? "Đang dùng chủ đề theo hệ thống."
+        : (next === "dark" ? "Đã bật chế độ tối." : "Đã bật chế độ sáng.");
+      showToast(msg, "info");
     });
 
     // OTP overlay events

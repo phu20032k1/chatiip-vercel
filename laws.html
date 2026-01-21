@@ -12,7 +12,7 @@
 <script>
 (function () {
   const STORAGE_KEY = "chatiip_app_version";
-  const FALLBACK_VERSION = "20260121143031";
+  const FALLBACK_VERSION = "20260121173000";
   const u = new URL(window.location.href);
   let v = u.searchParams.get("v") || "";
   if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }

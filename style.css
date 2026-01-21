@@ -1326,6 +1326,17 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     overflow: hidden;
 }
 
+/* Some blocks render a header (used by compare tables) instead of .data-block-toolbar */
+.data-block-header{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff, #f9fafb);
+}
+
 .data-block-toolbar{
     display: flex;
     align-items: center;
@@ -2231,6 +2242,305 @@ body.theme-dark .img-preview-close{
   background: rgba(17,24,39,0.92);
   color: #f9fafb;
 }
+
+/* ==========================
+   DARK MODE COMPLETION
+   - Rail/Sidebar + History
+   - Menus
+   - Tables/Cards
+   - Modals
+   - Inputs/Placeholder/Text/Border
+   ========================== */
+
+/* Generic form controls */
+body.theme-dark input,
+body.theme-dark textarea,
+body.theme-dark select{
+  color: var(--title);
+  border-color: var(--border);
+}
+
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder{
+  color: var(--muted);
+  opacity: 0.95;
+}
+
+/* Auth bar buttons (chat page) */
+body.theme-dark[data-page="chat"] .auth-btn{
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+body.theme-dark[data-page="chat"] #authBar #loginOpenBtn{
+  background: var(--primary-bg) !important;
+  border-color: var(--primary-bg) !important;
+  color: var(--primary-text) !important;
+}
+body.theme-dark[data-page="chat"] #authBar #registerOpenBtn{
+  background: transparent !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+/* Rail */
+body.theme-dark[data-page="chat"] .rail{
+  background: var(--surface) !important;
+  border-right-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .rail-btn{
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .rail-btn:hover{
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .rail-account{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .rail-avatar{
+  /* Use background-color instead of background shorthand so inline background-image (avatar) still works */
+  background-color: rgba(255,255,255,0.06) !important;
+  color: var(--title) !important;
+}
+
+/* Sidebar panel */
+body.theme-dark[data-page="chat"] .sidebar-panel{
+  background: var(--surface) !important;
+  border-right-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-panel-header{
+  border-bottom-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .brand-title{ color: var(--title) !important; }
+body.theme-dark[data-page="chat"] .brand-subtitle{ color: var(--muted) !important; }
+
+body.theme-dark[data-page="chat"] .sidebar-close{
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-close:hover{
+  background: var(--surface2) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-primary{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-primary:hover{
+  background: var(--surface2) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-panel-search i{
+  color: var(--muted) !important;
+}
+
+body.theme-dark[data-page="chat"] #historySearchInput{
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] #historySearchInput::placeholder{
+  color: var(--muted) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-section-title{
+  color: var(--muted) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-section-other{
+  border-top-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-empty{
+  color: var(--muted) !important;
+}
+
+/* History list */
+body.theme-dark[data-page="chat"] .history-item{
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-item:hover{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-item.active{
+  background: rgba(255,255,255,0.08) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-title{ color: var(--title) !important; }
+body.theme-dark[data-page="chat"] .history-sub{ color: var(--muted) !important; }
+
+body.theme-dark[data-page="chat"] .history-more,
+body.theme-dark[data-page="chat"] .history-del{
+  color: var(--muted) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-more:hover{
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--title) !important;
+}
+
+/* History menu */
+body.theme-dark[data-page="chat"] .history-menu{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-menu-item{
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-menu-item:hover{
+  background: var(--surface2) !important;
+}
+
+body.theme-dark[data-page="chat"] .history-menu-sep{
+  background: var(--border) !important;
+}
+
+/* Sidebar links */
+body.theme-dark[data-page="chat"] .sidebar-link{
+  color: var(--title) !important;
+}
+
+body.theme-dark[data-page="chat"] .sidebar-link:hover{
+  background: var(--surface2) !important;
+}
+
+/* Data blocks (cards around tables / lists) */
+body.theme-dark .data-block{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .data-block-toolbar,
+body.theme-dark .data-block-header{
+  background: linear-gradient(180deg, rgba(17,24,39,0.96), rgba(31,41,55,0.96)) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+body.theme-dark .data-block-title,
+body.theme-dark .data-block-sub{
+  color: var(--muted) !important;
+}
+
+/* Tables */
+body.theme-dark .data-table{ color: var(--title); }
+
+body.theme-dark .data-table th,
+body.theme-dark .data-table td{
+  border-bottom-color: var(--border) !important;
+}
+
+/* Ensure body rows are readable on dark theme (avoid inheriting light card backgrounds) */
+body.theme-dark .data-table tbody td{
+  background: rgba(255,255,255,0.02);
+  color: var(--text) !important;
+}
+
+body.theme-dark .data-table thead th{
+  background: rgba(17,24,39,0.96) !important;
+  color: var(--title) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+body.theme-dark .data-table tbody tr:nth-child(even) td{ background: rgba(255,255,255,0.03) !important; }
+body.theme-dark .data-table tbody tr:hover td{ background: rgba(255,255,255,0.06) !important; }
+
+/* Chips */
+body.theme-dark .chip{
+  background: rgba(255,255,255,0.04) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+/* Cards */
+body.theme-dark .data-card{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .data-card-title{ color: var(--title) !important; }
+body.theme-dark .data-card-label{ color: var(--muted) !important; }
+body.theme-dark .data-card-value{ color: var(--title) !important; }
+
+body.theme-dark .data-card-badge{
+  color: #93c5fd !important;
+  background: rgba(59,130,246,0.16) !important;
+  border-color: rgba(59,130,246,0.28) !important;
+}
+
+/* Feedback modal */
+body.theme-dark .feedback-modal{
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+
+body.theme-dark .feedback-modal h3{ color: var(--title) !important; }
+body.theme-dark .feedback-label{ color: var(--muted) !important; }
+
+body.theme-dark .feedback-close{
+  color: var(--muted) !important;
+}
+body.theme-dark .feedback-close:hover{
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--title) !important;
+}
+
+body.theme-dark .feedback-chips .chip{
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+body.theme-dark .feedback-textarea{
+  background: var(--surface2) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+
+body.theme-dark .feedback-textarea:focus{
+  border-color: rgba(59,130,246,0.55) !important;
+}
+
+/* Flowchart fullscreen modal */
+body.theme-dark .flowchart-modal-panel{
+  background: var(--surface) !important;
+}
+
+body.theme-dark .flowchart-modal-header{
+  border-bottom-color: var(--border) !important;
+}
+
+body.theme-dark .flowchart-modal-title{ color: var(--title) !important; }
+
+/* Map popups */
+body.theme-dark .mapboxgl-popup-content,
+body.theme-dark .maplibregl-popup-content{
+  background: var(--surface) !important;
+  color: var(--title) !important;
+  border-color: var(--border) !important;
+}
+
+body.theme-dark .maplibregl-popup-content .iip-popup-btn.secondary,
+body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
+  background: var(--surface2) !important;
+  color: var(--title) !important;
+  border-color: var(--border) !important;
+}
+
 
 
 /* === IIP MAP === */
