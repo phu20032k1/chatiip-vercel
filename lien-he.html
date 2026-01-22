@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <script>
+  (function () {
+    const STORAGE_KEY = "chatiip_app_version";
+    const FALLBACK_VERSION = "20260122202136";
+    const u = new URL(window.location.href);
+    let v = u.searchParams.get("v") || "";
+    if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+    if (!v) v = FALLBACK_VERSION;
+    window.CHATIIP_VERSION = v;
+
+    window.__CHATIIP_ASSET = function (path) {
+      try {
+        if (!path) return path;
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+      } catch (e) {
+        return path;
+      }
+    };
+
+    fetch("app-version.json", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        const latest = (j && j.version) ? String(j.version) : "";
+        if (!latest) return;
+        try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("v") !== latest) {
+          url.searchParams.set("v", latest);
+          window.location.replace(url.toString());
+        }
+      })
+      .catch(() => {});
+  })();
+  </script>
+
+  <title>Liên hệ | ChatIIP</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('style.css') + '">');</script>
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('info.css') + '">');</script>
+    <!-- FAVICON (applies site-wide) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="apple-touch-icon" href="favicon.ico?v=20260122202136" />
+
+</head>
+<body data-page="info">
+  <div class="info-page">
+    <header class="info-topbar" aria-label="Thanh điều hướng">
+      <div class="info-topbar-inner">
+        <a class="brand" href="./" aria-label="Quay lại trang chính ChatIIP">
+          <span class="brand-badge" aria-hidden="true"><img src="iip.png" alt="" /></span>
+          <span class="brand-text">
+            <span class="brand-name">ChatIIP</span>
+            <span class="brand-sub">Trợ lý AI</span>
+          </span>
+        </a>
+
+        <nav class="info-nav" aria-label="Menu">
+          <a href="gioi-thieu.html">Giới thiệu</a>
+          <a href="ve-chung-toi.html">Về chúng tôi</a>
+          <a class="is-active" href="lien-he.html">Liên hệ</a>
+        </nav>
+
+        <div class="header-actions">
+          <button class="btn btn-ghost mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+            Menu
+          </button>
+          <a class="btn btn-primary" href="./">
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+            Vào Chat
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="info-mobile-drawer" id="mobileDrawer" aria-hidden="true">
+      <div class="overlay" id="drawerOverlay"></div>
+      <div class="panel" role="dialog" aria-label="Menu">
+        <a href="gioi-thieu.html">Giới thiệu <span>ChatIIP.com</span></a>
+        <a href="ve-chung-toi.html">Về chúng tôi <span>IIP Vietnam</span></a>
+        <a href="lien-he.html">Liên hệ <span>Thông tin</span></a>
+        <a href="./">Vào Chat <span>Trang chính</span></a>
+      </div>
+    </div>
+
+    <main>
+      <section class="hero" aria-label="Liên hệ">
+        <div class="hero-card">
+          <div class="hero-inner">
+            <div>
+              <h1>Liên hệ</h1>
+              <p class="lead">
+                Nếu bạn cần hợp tác, tư vấn đầu tư KCN/CCN, hoặc hỗ trợ sử dụng ChatIIP/IIPMap, vui lòng liên hệ theo các kênh bên dưới.
+              </p>
+            </div>
+            <div class="hero-metrics" aria-label="Kênh liên hệ">
+              <div class="metric">
+                <div class="k"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Email</div>
+                <div class="v"><a href="mailto:contact@iipvietnam.com">contact@iipvietnam.com</a></div>
+              </div>
+              <div class="metric">
+                <div class="k"><i class="fa-solid fa-globe" aria-hidden="true"></i> Website</div>
+                <div class="v"><a href="https://iipvietnam.com" target="_blank" rel="noopener">iipvietnam.com</a></div>
+              </div>
+              <div class="metric">
+                <div class="k"><i class="fa-solid fa-headset" aria-hidden="true"></i> Hỗ trợ</div>
+                <div class="v">Chat trực tiếp trên ChatIIP.com &amp; IIPMap.com</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-chips" aria-label="Liên kết nhanh">
+            <a class="chip" href="./"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Quay lại Chat</a>
+            <a class="chip" href="gioi-thieu.html"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Giới thiệu ChatIIP</a>
+            <a class="chip" href="ve-chung-toi.html"><i class="fa-solid fa-building" aria-hidden="true"></i> Về IIP Vietnam</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="content">
+        <div class="section" id="thong-tin" aria-label="Thông tin">
+          <h2>Thông tin doanh nghiệp</h2>
+          <p class="desc">Thông tin pháp lý và điểm liên hệ chính thức.</p>
+
+          <div class="grid">
+            <div class="card wide">
+              <h3><span class="icon"><i class="fa-solid fa-address-card" aria-hidden="true"></i></span> Thông tin nhanh</h3>
+              <table class="table" aria-label="Thông tin liên hệ">
+                 <tr><th>Tên doanh nghiệp</th><td>CÔNG TY CỔ PHẦN IIP (IIP VIET NAM CO., LTD)</td></tr>
+            <tr><th>Mã số thuế</th><td>0110105710</td></tr>
+            <tr><th>Đại diện</th><td>Đoàn Duy Hưng</td></tr>
+            <tr><th>Trụ sở chính</th><td>Ngõ Thái Bình, Thôn Chu Trần, Xã Tiến Thịnh, Huyện Mê Linh, Hà Nội</td></tr>
+            <tr><th>Ngày bắt đầu hoạt động</th><td>05/09/2022</td></tr>
+            <tr><th>Website</th><td><a href="https://iipvietnam.com" target="_blank" rel="noopener noreferrer">iipvietnam.com</a></td></tr>
+            <tr><th>Email</th><td><a href="mailto:contact@iipvietnam.com">contact@iipvietnam.com</a></td></tr>
+            <tr><th>Kênh hỗ trợ</th><td>Chat trực tiếp trên <strong>ChatIIP.com</strong> &amp; <strong>IIPMap.com</strong></td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer" aria-label="Chân trang">
+        <div>© <span id="year"></span> ChatIIP. All rights reserved.</div>
+        <div>
+          <a href="./">Trang chính</a> · <a href="gioi-thieu.html">Giới thiệu</a> · <a href="ve-chung-toi.html">Về chúng tôi</a>
+        </div>
+      </div>
+
+      <a class="btn backtotop" id="backToTop" href="#" aria-label="Lên đầu trang">
+        <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+        Lên đầu trang
+      </a>
+    </main>
+
+    <script>document.write('<script src="' + window.__CHATIIP_ASSET('info.js') + '"><\/script>');</script>
+  </div>
+</body>
+</html>

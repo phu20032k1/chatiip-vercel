@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <script>
+  (function () {
+    const STORAGE_KEY = "chatiip_app_version";
+    const FALLBACK_VERSION = "20260122202136";
+    const u = new URL(window.location.href);
+    let v = u.searchParams.get("v") || "";
+    if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+    if (!v) v = FALLBACK_VERSION;
+    window.CHATIIP_VERSION = v;
+
+    window.__CHATIIP_ASSET = function (path) {
+      try {
+        if (!path) return path;
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+      } catch (e) {
+        return path;
+      }
+    };
+
+    fetch("app-version.json", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        const latest = (j && j.version) ? String(j.version) : "";
+        if (!latest) return;
+        try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("v") !== latest) {
+          url.searchParams.set("v", latest);
+          window.location.replace(url.toString());
+        }
+      })
+      .catch(() => {});
+  })();
+  </script>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('style.css') + '">');</script>
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('info.css') + '">');</script>
+
+  <title>Về chúng tôi | ChatIIP</title>
+  <meta name="description" content="Tìm hiểu IIP Vietnam: tầm nhìn, lĩnh vực hoạt động, hệ sinh thái số và thông tin liên hệ." />
+    <!-- FAVICON (applies site-wide) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="apple-touch-icon" href="favicon.ico?v=20260122202136" />
+
+</head>
+<body data-page="info">
+  <div class="info-page">
+
+    <header class="info-topbar">
+      <div class="info-topbar-inner">
+        <a class="brand" href="./" aria-label="Quay lại ChatIIP">
+          <span class="brand-badge" aria-hidden="true"><img src="iip.png" alt="" /></span>
+          <span class="brand-text">
+            <span class="brand-name">ChatIIP</span>
+            <span class="brand-sub">Trợ lý AI</span>
+          </span>
+        </a>
+
+        <nav class="info-nav" aria-label="Điều hướng">
+          <a href="gioi-thieu.html">Giới thiệu</a>
+          <a href="ve-chung-toi.html" class="is-active">Về chúng tôi</a>
+          <a href="lien-he.html">Liên hệ</a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="btn btn-primary" href="./"><i class="fa-solid fa-comments" aria-hidden="true"></i> Chat ngay</a>
+          <button class="btn mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="info-mobile-drawer" id="mobileDrawer" aria-hidden="true">
+      <div class="overlay" id="drawerOverlay"></div>
+      <div class="panel" role="dialog" aria-modal="true" aria-label="Menu">
+        <a href="gioi-thieu.html"><strong>Giới thiệu</strong><span>ChatIIP.com</span></a>
+        <a href="ve-chung-toi.html"><strong>Về chúng tôi</strong><span>IIP Vietnam</span></a>
+        <a href="lien-he.html"><strong>Liên hệ</strong><span>Thông tin</span></a>
+      </div>
+    </div>
+
+    <section class="hero" aria-label="Giới thiệu tổng quan">
+      <div class="hero-card">
+        <div class="hero-inner">
+          <div>
+            <h1>IIP Vietnam</h1>
+            <p class="lead">
+              Không chỉ là đơn vị tư vấn truyền thống—chúng tôi hướng tới vai trò <strong>kiến trúc sư hệ sinh thái bất động sản công nghiệp số</strong>,
+              kết nối nhà đầu tư, chủ dự án, cơ quan quản lý và thị trường bằng nền tảng công nghệ và mạng lưới chuyên sâu.
+            </p>
+          </div>
+
+          <div class="hero-metrics" aria-label="Điểm nhấn">
+            <div class="metric">
+              <div class="k">Triết lý</div>
+              <div class="v">“Lợi người – Lợi mình – Lợi xã hội”</div>
+            </div>
+            <div class="metric">
+              <div class="k">Hệ sinh thái</div>
+              <div class="v">IIPMap.com • ChatIIP.com</div>
+            </div>
+            <div class="metric">
+              <div class="k">Cam kết</div>
+              <div class="v">Minh bạch • Hiệu quả • Bền vững</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-chips" aria-label="Đi nhanh">
+          <a class="chip" href="#tam-nhin"><i class="fa-solid fa-compass" aria-hidden="true"></i> Tổng quan</a>
+          <a class="chip" href="#giai-phap"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Giải pháp khép kín</a>
+          <a class="chip" href="#he-sinh-thai"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> Nền tảng số</a>
+          <a class="chip" href="#lien-he"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Thông tin pháp lý</a>
+        </div>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="section" id="tam-nhin">
+        <h2>🏢 Tổng quan & tầm nhìn chiến lược</h2>
+        <p class="desc">
+          IIP Vietnam tập trung nâng chuẩn trải nghiệm đầu tư công nghiệp thông qua dữ liệu, công nghệ và tư vấn chuyên sâu,
+          giúp chuyển hóa thách thức pháp lý và thị trường thành cơ hội tăng trưởng cho mọi bên liên quan.
+        </p>
+
+        <div class="grid" role="list">
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-handshake" aria-hidden="true"></i></span> Kết nối hệ sinh thái</h3>
+            <p>Kết nối nhà đầu tư, chủ dự án, chính quyền và thị trường trên cùng một luồng thông tin minh bạch, có kiểm chứng.</p>
+          </div>
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span> An toàn pháp lý</h3>
+            <p>Tiếp cận pháp lý bài bản, rà soát rủi ro sớm và chuẩn hóa thủ tục để tối ưu tốc độ triển khai dự án.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="giai-phap">
+        <h2>🏗️ Lĩnh vực hoạt động chuyên sâu & giải pháp khép kín</h2>
+        <p class="desc">Từ xúc tiến đầu tư đến vận hành hạ tầng, chúng tôi cung cấp dịch vụ end-to-end, phù hợp cho cả khách hàng trong nước và FDI.</p>
+
+        <div class="grid" role="list">
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-industry" aria-hidden="true"></i></span> 1) Xúc tiến đầu tư & môi giới BĐS công nghiệp</h3>
+            <ul class="list">
+              <li>Môi giới sang nhượng/cho thuê đất, nhà xưởng; kết nối trực tiếp trong mạng lưới KCN/CCN.</li>
+              <li>Tìm kiếm đối tác chiến lược: gọi vốn, liên doanh, hợp tác phát triển hạ tầng.</li>
+              <li>Định giá & thẩm định: phân tích thị trường, xu hướng giá, tiềm năng sinh lời.</li>
+            </ul>
+          </div>
+
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span> 2) Tư vấn pháp lý & hỗ trợ đầu tư toàn diện</h3>
+            <ul class="list">
+              <li>Thủ tục đầu tư & thành lập doanh nghiệp: từ GCNĐKĐT đến GCNĐKDN.</li>
+              <li>Rà soát hợp đồng, tư vấn quy hoạch, môi trường, lao động, thuế và quy định ngành.</li>
+              <li>Hỗ trợ giấy phép chuyên ngành: xây dựng, PCCC, môi trường, ATLĐ…</li>
+            </ul>
+          </div>
+
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-sitemap" aria-hidden="true"></i></span> 3) Tư vấn phát triển dự án & quản lý hạ tầng</h3>
+            <ul class="list">
+              <li>Nghiên cứu thị trường & lập dự án tiền khả thi: cung-cầu, đối thủ, khuyến nghị địa điểm.</li>
+              <li>Thiết kế & quy hoạch chi tiết KCN: phân khu chức năng, hạ tầng kỹ thuật đồng bộ.</li>
+              <li>Quản lý vận hành & tái phát triển: nâng hiệu quả khai thác, cải tạo KCN cũ, phát triển KCN sinh thái.</li>
+            </ul>
+          </div>
+
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-globe" aria-hidden="true"></i></span> 4) Cổng thông tin & nền tảng số tiên phong</h3>
+            <ul class="list">
+              <li><strong>IIPMap.com</strong>: bản đồ số trực quan hóa thị trường BĐS công nghiệp, tích hợp lớp dữ liệu hạ tầng/quy hoạch/giá.</li>
+              <li><strong>ChatIIP.com</strong>: trợ lý AI chuyên sâu về pháp lý và tư vấn công nghiệp—biến “tháng nghiên cứu” thành “phút tra cứu”.</li>
+              <li>Kết nối đa kênh: tạo cầu nối trực tiếp giữa nhà đầu tư, FDI và chủ đầu tư hạ tầng.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="he-sinh-thai">
+        <h2>🌐 Hệ sinh thái số IIP</h2>
+        <p class="desc">
+          Chúng tôi kết hợp tư vấn truyền thống với nền tảng số để tạo trải nghiệm end-to-end: từ phân tích, khuyến nghị đến hành động và triển khai.
+        </p>
+
+        <div class="grid" role="list">
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-brain" aria-hidden="true"></i></span> ChatIIP.com</h3>
+            <p>Trợ lý AI chuyên sâu pháp lý/quy hoạch/đầu tư; cung cấp câu trả lời có căn cứ và hỗ trợ ra quyết định nhanh.</p>
+          </div>
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i></span> IIPMap.com</h3>
+            <p>Bản đồ dữ liệu thị trường BĐS công nghiệp: vị trí, hạ tầng, quy hoạch và thông tin dự án giúp khảo sát hiệu quả.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="gia-tri">
+        <h2>🌟 Giá trị cốt lõi & lợi thế cạnh tranh</h2>
+        <p class="desc">Lợi thế của IIP Vietnam nằm ở sự kết hợp giữa năng lực pháp lý–thị trường và năng lực công nghệ–dữ liệu.</p>
+
+        <div class="grid" role="list">
+          <div class="card third" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span> Chuyên gia “hai trong một”</h3>
+            <p>Am hiểu pháp luật và thị trường BĐS công nghiệp, đồng thời thành thạo công nghệ và phân tích dữ liệu.</p>
+          </div>
+          <div class="card third" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i></span> Hệ sinh thái tích hợp</h3>
+            <p>Kết hợp dịch vụ tư vấn với nền tảng số, tối ưu quy trình cho khách hàng từ đầu đến cuối.</p>
+          </div>
+          <div class="card third" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-network-wired" aria-hidden="true"></i></span> Mạng lưới đối tác rộng</h3>
+            <p>Quan hệ hợp tác với Ban quản lý KCN, hiệp hội đầu tư, tổ chức tài chính và đối tác quốc tế.</p>
+          </div>
+          <div class="card wide" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-circle-check" aria-hidden="true"></i></span> Minh bạch & trung thực</h3>
+            <p>Thông tin và dữ liệu được kiểm chứng, cập nhật liên tục, công khai nguồn gốc để hỗ trợ quyết định có trách nhiệm.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="tuong-lai">
+        <h2>🚀 Hướng đến tương lai</h2>
+        <p class="desc">IIP Vietnam tiếp tục đổi mới để trở thành đối tác chiến lược tin cậy trong hành trình đầu tư công nghiệp.</p>
+        <div class="grid" role="list">
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-earth-asia" aria-hidden="true"></i></span> Mở rộng khu vực</h3>
+            <p>Mở rộng phạm vi ra các thị trường Đông Nam Á và tăng cường kết nối đầu tư xuyên biên giới.</p>
+          </div>
+          <div class="card" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span> AI dự báo thị trường</h3>
+            <p>Phát triển công cụ AI dự báo xu hướng thị trường và rủi ro pháp lý, hỗ trợ ra quyết định theo thời gian thực.</p>
+          </div>
+          <div class="card wide" role="listitem">
+            <h3><span class="icon"><i class="fa-solid fa-people-group" aria-hidden="true"></i></span> Cộng đồng doanh nghiệp</h3>
+            <p>Xây dựng cộng đồng doanh nghiệp công nghiệp kết nối, chia sẻ tri thức và cơ hội hợp tác.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="lien-he">
+        <h2>📍 Thông tin pháp lý & liên hệ</h2>
+        <p class="desc">Thông tin doanh nghiệp và kênh liên hệ chính thức.</p>
+
+        <table class="table" aria-label="Thông tin pháp lý">
+          <tbody>
+            <tr><th>Tên doanh nghiệp</th><td>CÔNG TY CỔ PHẦN IIP (IIP VIET NAM CO., LTD)</td></tr>
+            <tr><th>Mã số thuế</th><td>0110105710</td></tr>
+            <tr><th>Đại diện</th><td>Đoàn Duy Hưng</td></tr>
+            <tr><th>Trụ sở chính</th><td>Ngõ Thái Bình, Thôn Chu Trần, Xã Tiến Thịnh, Huyện Mê Linh, Hà Nội</td></tr>
+            <tr><th>Ngày bắt đầu hoạt động</th><td>05/09/2022</td></tr>
+            <tr><th>Website</th><td><a href="https://iipvietnam.com" target="_blank" rel="noopener noreferrer">iipvietnam.com</a></td></tr>
+            <tr><th>Email</th><td><a href="mailto:contact@iipvietnam.com">contact@iipvietnam.com</a></td></tr>
+            <tr><th>Kênh hỗ trợ</th><td>Chat trực tiếp trên <strong>ChatIIP.com</strong> &amp; <strong>IIPMap.com</strong></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+
+    <footer class="footer" aria-label="Chân trang">
+      <div>© <span id="year"></span> ChatIIP • IIP Vietnam</div>
+      <div>
+        <a href="./">Quay lại ChatIIP</a>
+        &nbsp;•&nbsp;
+        <a href="lien-he.html">Liên hệ</a>
+      </div>
+    </footer>
+
+    <a class="btn backtotop" id="backToTop" href="#" aria-label="Lên đầu trang"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></a>
+
+  </div>
+
+  <script>document.write('<script src="' + window.__CHATIIP_ASSET('info.js') + '"><\/script>');</script>
+  <script>
+    (function(){
+      var y = document.getElementById('year');
+      if (y) y.textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>

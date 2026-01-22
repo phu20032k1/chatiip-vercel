@@ -165,7 +165,51 @@ body[data-page="chat"] .unauth-refresh{
 }
 
 body[data-page="chat"] .unauth-refresh:hover{
-    background: rgba(15, 23, 42, 0.06);
+    /* chỉ đổi icon khi hover (không nền xám) */
+    background: transparent;
+}
+
+/*
+  Swap icon (desktop-only):
+  - Desktop (hover + pointer fine): mặc định hiển thị icon IIP, hover thì hiện icon chức năng.
+  - Mobile/Tablet (không hover): giữ nguyên như cũ (luôn hiển thị icon chức năng).
+*/
+body[data-page="chat"] .icon-swap{ position: relative; }
+
+body[data-page="chat"] .icon-swap .swap-layer{
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body[data-page="chat"] .icon-swap .swap-img{
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+/* Mobile default: show action icon, hide IIP (giữ nguyên như cũ trên mobile) */
+body[data-page="chat"] .icon-swap .swap-default{
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+body[data-page="chat"] .icon-swap .swap-hover{
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    pointer-events: none;
+}
+
+/* Desktop hover-capable: default show IIP; hover show action */
+@media (hover: hover) and (pointer: fine){
+    body[data-page="chat"] .icon-swap .swap-default{ opacity: 1; transform: scale(1); }
+    body[data-page="chat"] .icon-swap .swap-hover{ opacity: 0; transform: scale(0.92); }
+
+    body[data-page="chat"] .icon-swap:hover .swap-default{ opacity: 0; transform: scale(0.92); }
+    body[data-page="chat"] .icon-swap:hover .swap-hover{ opacity: 1; transform: scale(1); }
 }
 
 body[data-page="chat"].unauth-mode .rail,
@@ -254,6 +298,12 @@ body[data-page="chat"] .rail-btn{
 body[data-page="chat"] .rail-btn:hover{
     background: rgba(15, 23, 42, 0.06);
     border-color: rgba(15, 23, 42, 0.08);
+}
+
+/* Toggle sidebar: chỉ đổi icon khi hover (không nền/viền xám) */
+body[data-page="chat"] #toggleSidebarBtn:hover{
+    background: transparent;
+    border-color: transparent;
 }
 
 body[data-page="chat"] .rail-spacer{
@@ -1181,12 +1231,15 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     max-width: 100%;
 }
 
-/* Giữ padding nhẹ cho typing indicator để nhìn đỡ trống */
+/* Typing indicator: chỉ icon (không nền/viền xám) */
 #typingIndicator .message-bubble{
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: #f3f4f6 !important;
-    display: inline-block;
+    padding: 0;
+    border-radius: 0;
+    background: transparent !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
 }
 
 /* Typography kiểu ChatGPT (markdown) */
@@ -1277,6 +1330,29 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     0% { opacity: 0.2; }
     20% { opacity: 1; }
     100% { opacity: 0.2; }
+}
+
+/* Typing icon (IIP) */
+.typing-inline{
+    display: inline-flex;
+    align-items: center;
+}
+
+.typing-icon{
+    width: 22px;
+    height: 22px;
+    display: block;
+    animation: typingPulse 1s infinite ease-in-out;
+}
+
+#typingIndicator .typing-icon{
+    width: 26px;
+    height: 26px;
+}
+
+@keyframes typingPulse{
+    0%, 100% { opacity: 0.35; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1); }
 }
 
 
@@ -3113,14 +3189,20 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
     display: block;
   }
 
-  /* On phones, let the page scroll naturally (avoid nested scroll on the left) */
-  .iip-side-left .data-table-wrap,
-  .iip-side-left .data-cards-wrap{
-    max-height: none;
-    overflow: visible;
-  }
+  /*
+  Mobile: enable scroll in BOTH directions for table & card lists.
+  - overflow: auto => allows vertical + horizontal as needed
+  - max-height keeps the list usable without pushing the map too far down
+*/
+.iip-side-left .data-table-wrap,
+.iip-side-left .data-cards-wrap{
+  max-height: min(65vh, 650px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 
-  .iip-side-right .iip-map-card{
+.iip-side-right .iip-map-card{
     margin-top: 12px;
   }
 }

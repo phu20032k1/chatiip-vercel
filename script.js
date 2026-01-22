@@ -474,82 +474,6 @@ const PROVINCE_MERGE_FALLBACK = (() => {
 })();
 
 
-// =========================
-// ⭐ MOBILE_INNER_SCROLL_SHIM
-// Một số trình duyệt mobile (đặc biệt iOS) có thể ưu tiên cuộn container cha
-// (chat-container) thay vì vùng overflow:auto con (bảng/danh sách), làm cảm giác
-// "kẹt" khi cố lướt trong bảng. Shim này ép cuộn đúng vùng con khi người dùng
-// kéo trong .data-table-wrap / .data-cards-wrap.
-// =========================
-(function MOBILE_INNER_SCROLL_SHIM() {
-    try {
-        const selector = '.data-table-wrap, .data-cards-wrap';
-        let activeWrap = null;
-        let lastX = 0;
-        let lastY = 0;
-
-        const isScrollableY = (el) => el && el.scrollHeight > el.clientHeight + 1;
-        const isScrollableX = (el) => el && el.scrollWidth > el.clientWidth + 1;
-
-        const onTouchStart = (e) => {
-            const t = e.touches && e.touches[0];
-            if (!t) return;
-            const wrap = e.target && e.target.closest ? e.target.closest(selector) : null;
-            if (!wrap) { activeWrap = null; return; }
-            activeWrap = wrap;
-            lastX = t.clientX;
-            lastY = t.clientY;
-            try { __markRichInteraction(); } catch (_) {}
-        };
-
-        const onTouchMove = (e) => {
-            if (!activeWrap) return;
-            const t = e.touches && e.touches[0];
-            if (!t) return;
-
-            const dx = lastX - t.clientX;
-            const dy = lastY - t.clientY;
-            lastX = t.clientX;
-            lastY = t.clientY;
-
-            const absX = Math.abs(dx);
-            const absY = Math.abs(dy);
-            const useY = absY >= absX;
-
-            // Nếu vùng con không thể cuộn theo hướng đó, để trình duyệt xử lý bình thường
-            if (useY) {
-                if (!isScrollableY(activeWrap)) return;
-                const atTop = activeWrap.scrollTop <= 0;
-                const atBottom = activeWrap.scrollTop + activeWrap.clientHeight >= activeWrap.scrollHeight - 1;
-                // Nếu đang ở biên và kéo ra ngoài, để chain lên cha (UX tự nhiên)
-                if ((dy < 0 && atTop) || (dy > 0 && atBottom)) return;
-                activeWrap.scrollTop += dy;
-            } else {
-                if (!isScrollableX(activeWrap)) return;
-                const atLeft = activeWrap.scrollLeft <= 0;
-                const atRight = activeWrap.scrollLeft + activeWrap.clientWidth >= activeWrap.scrollWidth - 1;
-                if ((dx < 0 && atLeft) || (dx > 0 && atRight)) return;
-                activeWrap.scrollLeft += dx;
-            }
-
-            // Ngăn container cha (chat) bắt gesture
-            try { e.preventDefault(); } catch (_) {}
-            try { e.stopPropagation(); } catch (_) {}
-            try { e.cancelBubble = true; } catch (_) {}
-        };
-
-        const onTouchEnd = () => { activeWrap = null; };
-
-        document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
-        document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
-        document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
-        document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: true });
-    } catch (e) {
-        console.warn('MOBILE_INNER_SCROLL_SHIM init failed', e);
-    }
-})();
-
-
 function mapProvinceNameToGeo(provinceText) {
     const norm = normalizeViText(provinceText);
     if (!norm) return provinceText || "";
@@ -2261,7 +2185,10 @@ function scrollToBottom(behavior = "smooth", force = false) {
             }, { capture: true, passive: true });
         });
 
-        // Wheel scroll: only block parent scroll if the inner scroller can actually scroll
+        // Wheel scroll: block scroll chaining ONLY when the inner scroller is at an edge.
+        // Important: If we preventDefault while the inner region can still scroll,
+        // we would disable the browser's native scrolling (common on iOS/Android
+        // and desktop mobile emulators).
         document.addEventListener('wheel', (e) => {
             const wrap = closestRich(e.target);
             if (!wrap) return;
@@ -2278,31 +2205,34 @@ function scrollToBottom(behavior = "smooth", force = false) {
             const dx = e.deltaX || 0;
             const useY = Math.abs(dy) >= Math.abs(dx);
 
+            // Block ONLY when user is trying to scroll past an edge, which would
+            // otherwise "chain" to the parent scroller.
             let shouldBlock = false;
             if (useY && canY) {
-                if ((dy > 0 && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 1) || (dy < 0 && wrap.scrollTop > 0)) {
-                    shouldBlock = true;
-                }
+                const atTop = wrap.scrollTop <= 0;
+                const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1;
+                if ((dy < 0 && atTop) || (dy > 0 && atBottom)) shouldBlock = true;
             } else if (!useY && canX) {
-                if ((dx > 0 && wrap.scrollLeft + wrap.clientWidth < wrap.scrollWidth - 1) || (dx < 0 && wrap.scrollLeft > 0)) {
-                    shouldBlock = true;
-                }
+                const atLeft = wrap.scrollLeft <= 0;
+                const atRight = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1;
+                if ((dx < 0 && atLeft) || (dx > 0 && atRight)) shouldBlock = true;
             }
 
             if (shouldBlock) {
-    // IMPORTANT: Do NOT preventDefault on wheel/touch for scrollable lists/tables,
-    // otherwise the inner scroller itself will not scroll (causes "kẹt" / stuck scrolling).
-    // We only stop propagation to avoid parent/chat container reacting to the gesture.
-    try { e.stopPropagation(); } catch (_) {}
-    try { e.cancelBubble = true; } catch (_) {}
-}
-}, { capture: true, passive: false });
+                try { e.preventDefault(); } catch (_) {}
+                try { e.stopPropagation(); } catch (_) {}
+            }
+        }, { capture: true, passive: false });
 
-        // Touch move: tương tự wheel (chỉ chặn khi vùng con còn cuộn được)
+        // Touch move: same idea as wheel. Only block when user is trying to scroll
+        // past an edge (to prevent parent scroll), otherwise allow native scrolling.
+        let lastTouchX = 0;
         let lastTouchY = 0;
         document.addEventListener('touchstart', (e) => {
             const t = e.touches && e.touches[0];
-            if (t) lastTouchY = t.clientY;
+            if (!t) return;
+            lastTouchX = t.clientX;
+            lastTouchY = t.clientY;
         }, { capture: true, passive: true });
 
         document.addEventListener('touchmove', (e) => {
@@ -2314,86 +2244,33 @@ function scrollToBottom(behavior = "smooth", force = false) {
 
             const t = e.touches && e.touches[0];
             if (!t) return;
-            const dy = lastTouchY - t.clientY; // dy>0 means scroll down
+            const dx = lastTouchX - t.clientX;
+            const dy = lastTouchY - t.clientY;
+            lastTouchX = t.clientX;
             lastTouchY = t.clientY;
 
             const canY = wrap.scrollHeight > wrap.clientHeight + 1;
-            if (!canY) return;
+            const canX = wrap.scrollWidth > wrap.clientWidth + 1;
+            if (!canY && !canX) return;
 
-            const shouldBlock = (dy > 0 && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 1) || (dy < 0 && wrap.scrollTop > 0);
-            if (shouldBlock) {
-    // IMPORTANT: Do NOT preventDefault on wheel/touch for scrollable lists/tables,
-    // otherwise the inner scroller itself will not scroll (causes "kẹt" / stuck scrolling).
-    // We only stop propagation to avoid parent/chat container reacting to the gesture.
-    try { e.stopPropagation(); } catch (_) {}
-    try { e.cancelBubble = true; } catch (_) {}
-}
-}, { capture: true, passive: false });
+            const useY = Math.abs(dy) >= Math.abs(dx);
 
-
-        // =========================
-        // ⭐ Mobile inner-scroll shim
-        // Một số trình duyệt mobile (đặc biệt iOS/Safari) có hành vi không ổn định với nested scroll
-        // (parent chat-container scroll + child overflow:auto). Kết quả: "không lướt được" bảng/danh sách.
-        // Shim này đảm bảo khi người dùng kéo trong vùng .data-table-wrap / .data-cards-wrap,
-        // chính vùng đó sẽ nhận scroll, đồng thời ngăn parent giành gesture.
-        // =========================
-        let activeInner = null;
-        let lastInnerY = 0;
-
-        const isInnerScrollable = (el) => {
-            if (!el) return false;
-            const canY = el.scrollHeight > el.clientHeight + 1;
-            return canY;
-        };
-
-        document.addEventListener('touchstart', (e) => {
-            const wrap = closestRich(e.target);
-            if (!wrap) { activeInner = null; return; }
-            if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) {
-                activeInner = null;
-                return;
+            let shouldBlock = false;
+            if (useY && canY) {
+                const atTop = wrap.scrollTop <= 0;
+                const atBottom = wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 1;
+                if ((dy < 0 && atTop) || (dy > 0 && atBottom)) shouldBlock = true;
+            } else if (!useY && canX) {
+                const atLeft = wrap.scrollLeft <= 0;
+                const atRight = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 1;
+                if ((dx < 0 && atLeft) || (dx > 0 && atRight)) shouldBlock = true;
             }
-            if (!isInnerScrollable(wrap)) { activeInner = null; return; }
 
-            const t = e.touches && e.touches[0];
-            if (!t) { activeInner = null; return; }
-            activeInner = wrap;
-            lastInnerY = t.clientY;
-        }, { capture: true, passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!activeInner) return;
-            const t = e.touches && e.touches[0];
-            if (!t) return;
-
-            const dy = lastInnerY - t.clientY; // dy>0: scroll down
-            lastInnerY = t.clientY;
-
-            const el = activeInner;
-            if (!isInnerScrollable(el)) return;
-
-            // Chỉ "giành" gesture khi vùng con còn khả năng cuộn theo hướng đó.
-            const atTop = el.scrollTop <= 0;
-            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-            const wantsDown = dy > 0;
-            const wantsUp = dy < 0;
-
-            const canConsume = (wantsDown && !atBottom) || (wantsUp && !atTop);
-            if (!canConsume) return; // cho phép parent scroll khi chạm biên
-
-            try { __markRichInteraction(); } catch (_) {}
-
-            // Thực hiện scroll trực tiếp lên vùng con và chặn parent container.
-            try { el.scrollTop += dy; } catch (_) {}
-            try { e.preventDefault(); } catch (_) {}
-            try { e.stopPropagation(); } catch (_) {}
-            try { e.cancelBubble = true; } catch (_) {}
+            if (shouldBlock) {
+                try { e.preventDefault(); } catch (_) {}
+                try { e.stopPropagation(); } catch (_) {}
+            }
         }, { capture: true, passive: false });
-
-        ['touchend', 'touchcancel'].forEach((evt) => {
-            document.addEventListener(evt, () => { activeInner = null; }, { capture: true, passive: true });
-        });
 
     } catch (e) {
         console.warn('RICH_SCROLL_GUARDS init failed', e);
@@ -3505,39 +3382,25 @@ try {
 				let displayText = (m.text ?? m.content ?? "");
                 let vizData = m.vizData || null;
 
-				// Nếu cache không có vizData, thử phục hồi viz từ raw/text (string) hoặc từ object trực tiếp
-try {
-    if (!vizData) {
-        // 1) raw là object (backend có thể trả JSON object thay vì string)
-        if (raw && typeof raw === "object" && looksLikeStructuredViz(raw)) {
-            vizData = raw;
-            displayText = (raw.answer ?? raw.message ?? raw.text);
-            const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
-            if (!hasText) displayText = getVizDefaultCaption(raw);
-        }
-        // 2) raw là string: thử parse sâu
-        else if (typeof raw === "string") {
-            const parsed = tryParseJsonDeep(raw, 3);
-            if (parsed && typeof parsed === "object") {
-                if (looksLikeStructuredViz(parsed)) {
-                    vizData = parsed;
-                    displayText = (parsed.answer ?? parsed.message ?? parsed.text);
-                    const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
-                    if (!hasText) displayText = getVizDefaultCaption(parsed);
-                } else if (displayText === "[object Object]" || displayText === "" || displayText == null) {
-                    displayText = parsed;
-                }
-            }
-        }
-        // 3) displayText hiện tại là object viz
-        if (!vizData && displayText && typeof displayText === "object" && looksLikeStructuredViz(displayText)) {
-            vizData = displayText;
-            displayText = (vizData.answer ?? vizData.message ?? vizData.text);
-            const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
-            if (!hasText) displayText = getVizDefaultCaption(vizData);
-        }
-    }
-} catch (_) {}
+				// Nếu cache không có vizData, thử parse JSON từ raw/text
+                try {
+                    if (!vizData && typeof raw === "string") {
+                        const parsed = tryParseJsonDeep(raw, 3);
+						if (parsed && typeof parsed === "object") {
+							// 1) Nếu là viz -> render viz + caption (tránh JSON thô)
+							if (looksLikeStructuredViz(parsed)) {
+								vizData = parsed;
+								displayText = (parsed.answer ?? parsed.message ?? parsed.text);
+								const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
+								if (!hasText) displayText = getVizDefaultCaption(parsed);
+							}
+							// 2) Không phải viz nhưng text bị rơi -> dùng parsed để dựng lại bảng
+							else if (displayText === "[object Object]" || displayText === "" || displayText == null) {
+								displayText = parsed;
+							}
+						}
+                    }
+                } catch (_) {}
 
                 const botEl = addBotMessage(displayText, { question: q });
 
@@ -3613,41 +3476,24 @@ try {
 
                 if (role === 'ai' || role === 'assistant' || role === 'system') {
                     let vizData = null;
-                    // Giữ nguyên kiểu để dựng lại bảng từ JSON (tránh "[object Object]")
-                    let displayText = content;
+					// Giữ nguyên kiểu để dựng lại bảng từ JSON (tránh "[object Object]")
+					let displayText = content;
                     try {
-                        // 1) content là object (server có thể trả JSON object thay vì string)
-                        if (content && typeof content === 'object') {
-                            if (looksLikeStructuredViz(content)) {
-                                vizData = content;
-                                displayText = (content.answer ?? content.message ?? content.text);
-                                const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
-                                if (!hasText) displayText = getVizDefaultCaption(content);
-                            } else {
-                                // giữ nguyên object/array để normalizeBotMessage tự dựng bảng/format
-                                displayText = content;
-                            }
-                        }
-                        // 2) content là string: parse sâu để phục hồi viz/bảng
-                        else if (typeof content === 'string') {
+                        if (typeof content === 'string') {
                             const parsed = tryParseJsonDeep(content, 3);
-                            if (parsed && typeof parsed === 'object') {
-                                if (looksLikeStructuredViz(parsed)) {
-                                    vizData = parsed;
-                                    displayText = (parsed.answer ?? parsed.message ?? parsed.text);
-                                    const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
-                                    if (!hasText) displayText = getVizDefaultCaption(parsed);
-                                } else {
-                                    displayText = parsed; // array/object -> dựng bảng
-                                }
-                            }
-                        }
-                        // 3) displayText đang là viz object
-                        if (!vizData && displayText && typeof displayText === 'object' && looksLikeStructuredViz(displayText)) {
-                            vizData = displayText;
-                            displayText = (vizData.answer ?? vizData.message ?? vizData.text);
-                            const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
-                            if (!hasText) displayText = getVizDefaultCaption(vizData);
+							if (parsed && typeof parsed === 'object') {
+								// 1) Viz -> render viz, bubble chỉ hiện caption/text (không lộ JSON thô)
+								if (looksLikeStructuredViz(parsed)) {
+									vizData = parsed;
+									displayText = (parsed.answer ?? parsed.message ?? parsed.text);
+									const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
+									if (!hasText) displayText = getVizDefaultCaption(parsed);
+								}
+								// 2) Không phải viz nhưng content là JSON array/object -> dùng parsed để dựng bảng
+								else {
+									displayText = parsed;
+								}
+							}
                         }
                     } catch (_) {}
 
@@ -4073,10 +3919,8 @@ try {
         typingElement.className = 'message bot-message';
         typingElement.id = 'typingIndicator';
         typingElement.innerHTML = `
-            <div class="message-bubble bot-bubble">
-                <span class="typing-dots">
-                    <span></span><span></span><span></span>
-                </span>
+            <div class="message-bubble bot-bubble typing-bubble">
+                <img class="typing-icon" src="iip-typing.png" alt="IIP typing" />
             </div>
         `;
         chatContainer.appendChild(typingElement);
@@ -4199,8 +4043,8 @@ try {
         if (!bubble) return;
 
         bubble.innerHTML = `
-            <span class="typing-dots">
-                <span></span><span></span><span></span>
+            <span class="typing-inline">
+                <img class="typing-icon" src="iip-typing.png" alt="IIP typing" />
             </span>
         `;
 
@@ -5041,31 +4885,6 @@ logToGoogle({
         const u0 = getLoggedInUser && getLoggedInUser();
         if (u0 && u0.id) pullSessionsFromServer(u0);
     } catch (_) {}
-
-// ---------- Live multi-device sync ----------
-// Người dùng chat trên thiết bị khác (điện thoại) → PC cần tự pull danh sách session mới.
-// Cơ chế: poll nhẹ, chỉ khi đang đăng nhập và tab đang visible.
-let __lastSessionsPullAt = 0;
-function maybePullSessions() {
-    try {
-        const u = getLoggedInUser && getLoggedInUser();
-        if (!u || !u.id) return;
-        if (document.hidden) return;
-        const now = Date.now();
-        // throttle để tránh spam
-        if (now - __lastSessionsPullAt < 20000) return; // 20s
-        __lastSessionsPullAt = now;
-        pullSessionsFromServer(u);
-    } catch (_) {}
-}
-
-try {
-    // poll định kỳ
-    setInterval(maybePullSessions, 25000); // 25s
-    // pull lại khi quay về tab
-    window.addEventListener("focus", maybePullSessions);
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) maybePullSessions(); });
-} catch (_) {}
 
     function upsertSession(userId, sessionId, patch = {}) {
         if (!userId || !sessionId) return;

@@ -11,7 +11,7 @@
     <script>
 (function () {
   const STORAGE_KEY = "chatiip_app_version";
-  const FALLBACK_VERSION = "20260122203703";
+  const FALLBACK_VERSION = "20260122202136";
   const u = new URL(window.location.href);
   let v = u.searchParams.get("v") || "";
   if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
@@ -50,10 +50,8 @@
     <title>ChatIIP</title>
 
     <!-- FAVICON -->
-    <link rel="icon" type="image/png" href="/iip.png">
 
     <!-- iOS (iPhone, iPad) -->
-    <link rel="apple-touch-icon" href="/iip.png">
 
 
 
@@ -152,8 +150,10 @@
         gtag('config', 'G-9DLYZL4633');
         gtag('config', 'G-R5YNLSJQMZ');    
     </script>
-
-
+    <!-- FAVICON (applies site-wide) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="apple-touch-icon" href="favicon.ico?v=20260122202136" />
 
 </head>
 
@@ -162,8 +162,14 @@
     <!-- Unauthenticated: topbar like ChatGPT (no sidebar / no history) -->
     <div class="unauth-topbar" id="unauthTopbar" aria-label="Thanh trên (chưa đăng nhập)">
         <!-- Làm mới/đoạn chat mới đứng trước (giống ảnh yêu cầu) -->
-        <button class="unauth-refresh" id="unauthRefreshBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">
-            <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+        <button class="unauth-refresh icon-swap" id="unauthRefreshBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">
+            <span class="swap-layer swap-default" aria-hidden="true">
+                <img class="swap-img" src="iip-typing.png" alt="" />
+            </span>
+            <span class="swap-layer swap-hover" aria-hidden="true">
+	                <!-- Giữ đúng icon gốc cho "Đoạn chat mới" (bút) -->
+	                <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+            </span>
         </button>
 
         <button class="unauth-brand" id="unauthBrandBtn" type="button" aria-label="ChatIIP" title="ChatIIP">
@@ -172,9 +178,9 @@
 
 <!-- ====== MENU GIỮA MÀN HÌNH (desktop, chưa đăng nhập, chưa gửi tin) ====== -->
 <nav class="unauth-menu" aria-label="Menu thông tin">
-    <a href="/gioi-thieu" class="unauth-menu-link">Giới thiệu</a>
-    <a href="/ve-chung-toi" class="unauth-menu-link">Về chúng tôi</a>
-    <a href="/lien-he" class="unauth-menu-link">Liên hệ</a>
+    <a href="gioi-thieu.html" class="unauth-menu-link">Giới thiệu</a>
+    <a href="ve-chung-toi.html" class="unauth-menu-link">Về chúng tôi</a>
+    <a href="lien-he.html" class="unauth-menu-link">Liên hệ</a>
 </nav>
 
     </div>
@@ -193,8 +199,13 @@
 
         <!-- LEFT RAIL (ChatGPT-style) -->
         <nav class="rail" id="rail" aria-label="Thanh công cụ">
-            <button class="rail-btn" id="toggleSidebarBtn" type="button" title="Mở thanh bên" aria-label="Mở thanh bên">
-                <i class="fas fa-columns"></i>
+            <button class="rail-btn icon-swap" id="toggleSidebarBtn" type="button" title="Mở thanh bên" aria-label="Mở thanh bên">
+                <span class="swap-layer swap-default" aria-hidden="true">
+                    <img class="swap-img" src="iip-typing.png" alt="" />
+                </span>
+                <span class="swap-layer swap-hover" aria-hidden="true">
+                    <i class="fas fa-columns"></i>
+                </span>
             </button>
 
             <button class="rail-btn" id="newChatRailBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">

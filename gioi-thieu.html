@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <script>
+  (function () {
+    const STORAGE_KEY = "chatiip_app_version";
+    const FALLBACK_VERSION = "20260122202136";
+    const u = new URL(window.location.href);
+    let v = u.searchParams.get("v") || "";
+    if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
+    if (!v) v = FALLBACK_VERSION;
+    window.CHATIIP_VERSION = v;
+
+    window.__CHATIIP_ASSET = function (path) {
+      try {
+        if (!path) return path;
+        if (/^https?:\/\//i.test(path)) return path;
+        return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+      } catch (e) {
+        return path;
+      }
+    };
+
+    fetch("app-version.json", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        const latest = (j && j.version) ? String(j.version) : "";
+        if (!latest) return;
+        try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("v") !== latest) {
+          url.searchParams.set("v", latest);
+          window.location.replace(url.toString());
+        }
+      })
+      .catch(() => {});
+  })();
+  </script>
+
+  <title>Giới thiệu | ChatIIP</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('style.css') + '">');</script>
+  <script>document.write('<link rel="stylesheet" href="' + window.__CHATIIP_ASSET('info.css') + '">');</script>
+
+  <meta name="description" content="Giới thiệu ChatIIP.com – Trợ lý AI chuyên sâu về pháp lý và tư vấn công nghiệp tại Việt Nam." />
+    <!-- FAVICON (applies site-wide) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="apple-touch-icon" href="favicon.ico?v=20260122202136" />
+
+</head>
+
+<body data-page="info">
+  <div class="info-page">
+
+    <header class="info-topbar">
+      <div class="info-topbar-inner">
+        <a class="brand" href="./" aria-label="Về trang chính ChatIIP" title="Về trang chính">
+          <span class="brand-badge" aria-hidden="true">
+            <img src="iip.png" alt="" />
+          </span>
+          <span class="brand-text">
+            <span class="brand-name">ChatIIP</span>
+            <span class="brand-sub">Trợ lý AI công nghiệp</span>
+          </span>
+        </a>
+
+        <nav class="info-nav" aria-label="Điều hướng">
+          <a class="is-active" href="gioi-thieu.html">Giới thiệu</a>
+          <a href="ve-chung-toi.html">Về chúng tôi</a>
+          <a href="lien-he.html">Liên hệ</a>
+        </nav>
+
+        <div class="header-actions">
+          <button class="btn btn-ghost mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Mở menu">
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
+          </button>
+          <a class="btn btn-primary" href="./" aria-label="Quay lại trang chính">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            Quay lại Chat
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="info-mobile-drawer" id="mobileDrawer" aria-hidden="true">
+      <div class="overlay" id="drawerOverlay"></div>
+      <div class="panel" role="dialog" aria-modal="true" aria-label="Menu">
+        <a href="gioi-thieu.html" class="is-active">Giới thiệu <span>ChatIIP.com</span></a>
+        <a href="ve-chung-toi.html">Về chúng tôi <span>IIP Vietnam</span></a>
+        <a href="lien-he.html">Liên hệ <span>Kết nối ngay</span></a>
+        <a href="./">Về trang chính <span>ChatIIP</span></a>
+      </div>
+    </div>
+
+    <main>
+      <section class="hero" aria-label="Giới thiệu">
+        <div class="hero-card">
+          <div class="hero-inner">
+            <div>
+              <h1>ChatIIP.com – Trợ lý AI chuyên sâu cho đầu tư công nghiệp</h1>
+              <p class="lead">
+                Không chỉ là chatbot, ChatIIP là đối tác chiến lược thông minh giúp bạn biến hàng tháng nghiên cứu pháp lý – quy hoạch – thủ tục
+                thành vài phút tra cứu rõ ràng, có căn cứ.
+              </p>
+            </div>
+            <div class="hero-metrics" aria-label="Điểm nổi bật">
+              <div class="metric">
+                <div class="k">5 trụ cột tri thức</div>
+                <div class="v">KCN/CCN – Pháp luật – Thuế/Ưu đãi – Quy hoạch/Kỹ thuật – Môi trường kinh doanh</div>
+              </div>
+              <div class="metric">
+                <div class="k">Ưu tiên an toàn pháp lý</div>
+                <div class="v">Nguyên tắc “tốt hơn im lặng còn hơn sai” và minh bạch nguồn gốc</div>
+              </div>
+              <div class="metric">
+                <div class="k">Kết nối hệ sinh thái IIP</div>
+                <div class="v">Từ phân tích đến hành động: gợi ý KCN phù hợp và hỗ trợ triển khai</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-chips" aria-label="Đi tới nội dung">
+            <a class="chip" href="#nen-tang"><i class="fa-solid fa-brain" aria-hidden="true"></i> Nền tảng thông minh</a>
+            <a class="chip" href="#triet-ly"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Triết lý hoạt động</a>
+            <a class="chip" href="#doi-tuong"><i class="fa-solid fa-users" aria-hidden="true"></i> Đối tượng hưởng lợi</a>
+            <a class="chip" href="#he-sinh-thai"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> Hệ sinh thái IIP</a>
+            <a class="chip" href="#huong-dan"><i class="fa-solid fa-book" aria-hidden="true"></i> Hướng dẫn sử dụng</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="content">
+
+        <section class="section" id="nen-tang">
+          <h2>Nền tảng thông minh</h2>
+          <p class="desc">
+            ChatIIP được thiết kế như một chuyên gia ảo chuyên ngành: hiểu ngôn ngữ tự nhiên, nắm bối cảnh hội thoại và tổng hợp tri thức theo cấu trúc.
+          </p>
+
+          <div class="grid">
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-industry" aria-hidden="true"></i></span> Khu &amp; Cụm Công Nghiệp</h3>
+              <p>Dữ liệu KCN/CCN đa chiều, hỗ trợ đánh giá địa điểm và điều kiện hạ tầng.</p>
+            </div>
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span> Hệ thống pháp luật</h3>
+              <p>Tổng hợp – đối chiếu văn bản, giảm rủi ro hiểu sai quy định và hiệu lực.</p>
+            </div>
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-receipt" aria-hidden="true"></i></span> Thuế &amp; ưu đãi</h3>
+              <p>Gợi ý kịch bản ưu đãi theo ngành/địa phương, hỗ trợ ra quyết định.</p>
+            </div>
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-map" aria-hidden="true"></i></span> Quy hoạch &amp; tiêu chuẩn</h3>
+              <p>Tập trung vào quy hoạch vùng, chuẩn xây dựng và yêu cầu kỹ thuật hạ tầng.</p>
+            </div>
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-briefcase" aria-hidden="true"></i></span> Môi trường kinh doanh</h3>
+              <p>Thủ tục hành chính, điều kiện đầu tư, xu hướng thị trường và vận hành.</p>
+            </div>
+            <div class="card third">
+              <h3><span class="icon"><i class="fa-solid fa-language" aria-hidden="true"></i></span> Đa ngôn ngữ</h3>
+              <p>Giao tiếp tự nhiên với nhiều đối tượng: nhà đầu tư, pháp chế, tư vấn, môi giới.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="triet-ly">
+          <h2>Triết lý hoạt động</h2>
+          <p class="desc">
+            Trọng tâm là độ tin cậy và an toàn pháp lý: ưu tiên chính xác, minh bạch và chủ động nêu giới hạn dữ liệu.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-lock" aria-hidden="true"></i></span> Nguồn dữ liệu khép kín</h3>
+              <p>Chỉ sử dụng nguồn pháp lý chính thống, được kiểm tra hiệu lực và số hóa có cấu trúc.</p>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span> Kiểm tra đa tầng</h3>
+              <p>Đối chiếu luật trung ương – địa phương – quy hoạch – dữ liệu thực tế để hạn chế mâu thuẫn.</p>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-quote-right" aria-hidden="true"></i></span> Minh bạch nguồn gốc</h3>
+              <p>Ưu tiên trích dẫn điều, khoản, văn bản và ngày ban hành để người dùng dễ kiểm chứng.</p>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span> Nhận diện giới hạn</h3>
+              <p>Khi thiếu dữ liệu hoặc ngoài phạm vi, hệ thống sẽ nói rõ và gợi ý hướng tiếp cận khác.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="doi-tuong">
+          <h2>Đối tượng hưởng lợi</h2>
+          <p class="desc">
+            Thiết kế phục vụ đầy đủ vòng đời dự án – từ ý tưởng, khảo sát địa điểm, đến cấp phép và vận hành.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-globe" aria-hidden="true"></i></span> Nhà đầu tư (trong nước &amp; FDI)</h3>
+              <ul class="list">
+                <li>Đánh giá rào cản pháp lý, tỷ lệ sở hữu, lộ trình cấp phép.</li>
+                <li>So sánh lựa chọn KCN/CCN theo ngành và mục tiêu vận hành.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-chess-king" aria-hidden="true"></i></span> Lãnh đạo doanh nghiệp</h3>
+              <ul class="list">
+                <li>Cập nhật chính sách mới nhanh, phục vụ quyết định chiến lược.</li>
+                <li>Định hướng mở rộng sản xuất theo xu hướng quy hoạch và ưu đãi.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-file-signature" aria-hidden="true"></i></span> Phòng pháp chế / hành chính</h3>
+              <ul class="list">
+                <li>Hỗ trợ rà soát tuân thủ, chuẩn hóa biểu mẫu và quy trình nội bộ.</li>
+                <li>Giảm tải công việc tra cứu văn bản và đối chiếu quy định.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-handshake" aria-hidden="true"></i></span> Tư vấn / môi giới BĐS công nghiệp</h3>
+              <ul class="list">
+                <li>Phân tích chuyên sâu để tư vấn khách hàng nhanh và có căn cứ.</li>
+                <li>Tăng độ tin cậy khi trình bày đề xuất và phương án đầu tư.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="he-sinh-thai">
+          <h2>Hệ sinh thái kỹ thuật số IIP</h2>
+          <p class="desc">
+            ChatIIP là “bộ não” phân tích, kết hợp với bản đồ dữ liệu để chuyển từ tư vấn sang hành động.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-message" aria-hidden="true"></i></span> ChatIIP → Chiến lược &amp; phân tích</h3>
+              <p>Giải thích chính sách, phân tích rủi ro pháp lý, đề xuất phương án triển khai.</p>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></span> IIPMap → Khám phá &amp; triển khai</h3>
+              <p>Trực quan hóa KCN phù hợp, thông tin hạ tầng, hỗ trợ kết nối khảo sát thực địa.</p>
+            </div>
+            <div class="card wide">
+              <h3><span class="icon"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span> Từ tư vấn sang hành động</h3>
+              <p>
+                Sau khi nhận khuyến nghị, người dùng có thể chuyển sang dữ liệu bản đồ để chọn vị trí, so sánh phương án và thực hiện bước tiếp theo.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="huong-dan">
+          <h2>Hướng dẫn sử dụng</h2>
+          <p class="desc">
+            Mẹo nhỏ để khai thác tối đa sức mạnh của ChatIIP.
+          </p>
+          <div class="grid">
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-bullseye" aria-hidden="true"></i></span> Hỏi cụ thể để nhận kết quả sâu</h3>
+              <ul class="list">
+                <li>Hãy nêu rõ <span class="kbd">địa điểm</span>, <span class="kbd">ngành</span>, <span class="kbd">quy mô vốn</span>, <span class="kbd">mục tiêu</span>.</li>
+                <li>Ví dụ: “Sản xuất linh kiện điện tử tại Bình Dương, vốn 20 triệu USD…”</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-hashtag" aria-hidden="true"></i></span> Dùng từ khóa chuyên ngành</h3>
+              <ul class="list">
+                <li>“mã ngành”, “vốn pháp định”, “ngành nghề cấm đầu tư”.</li>
+                <li>“ưu đãi thuế TNDN”, “tiêu chuẩn phòng cháy KCN”, “quy trình môi trường”.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-comments" aria-hidden="true"></i></span> Tương tác đa tầng</h3>
+              <ul class="list">
+                <li>Hỏi tiếp theo bối cảnh: “Thời gian xử lý hồ sơ là bao lâu?”</li>
+                <li>Kiểm tra cập nhật: “Có văn bản nào mới thay thế không?”</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3><span class="icon"><i class="fa-solid fa-compass" aria-hidden="true"></i></span> Kết hợp IIPMap</h3>
+              <p>Sau khi có danh sách KCN phù hợp, chuyển sang bản đồ để xem vị trí, hạ tầng và sắp lịch khảo sát.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="tam-nhin">
+          <h2>Tầm nhìn tương lai</h2>
+          <p class="desc">
+            ChatIIP hướng đến vai trò trung tâm thông minh kết nối nhà đầu tư – chuyên gia – cơ quan quản lý – thị trường, tích hợp dự báo xu hướng và phân tích rủi ro theo thời gian thực.
+          </p>
+        </section>
+
+      </div>
+    </main>
+
+    <footer class="footer" aria-label="Chân trang">
+      <div>© <span id="year"></span> ChatIIP. Từ ý tưởng đến hành động – trên một hệ sinh thái.</div>
+      <div>
+        <a href="ve-chung-toi.html">Tìm hiểu IIP Vietnam</a>
+        &nbsp;·&nbsp;
+        <a href="lien-he.html">Liên hệ</a>
+      </div>
+    </footer>
+
+    <a class="btn backtotop" id="backToTop" href="#" aria-label="Lên đầu trang">
+      <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+      Lên đầu
+    </a>
+
+  </div>
+
+  <script>document.write('<script src="' + window.__CHATIIP_ASSET('info.js') + '"><\/script>');</script>
+  <script>
+    (function(){
+      var y = document.getElementById('year');
+      if (y) y.textContent = String(new Date().getFullYear());
+    })();
+  </script>
+</body>
+</html>

@@ -1,11 +1,15 @@
 {
   "rewrites": [
-      { "source": "/news", "destination": "/news.html" },
+    { "source": "/news", "destination": "/news.html" },
     { "source": "/laws", "destination": "/laws.html" },
     { "source": "/doc", "destination": "/doc.html" },
     { "source": "/article", "destination": "/article.html" },
     { "source": "/category", "destination": "/category.html" },
     { "source": "/chat", "destination": "/index.html" },
+
+    { "source": "/gioi-thieu", "destination": "/gioi-thieu.html" },
+    { "source": "/ve-chung-toi", "destination": "/ve-chung-toi.html" },
+    { "source": "/lien-he", "destination": "/lien-he.html" },
 
     { "source": "/api/auth/:path*", "destination": "https://chatbot-backend-fly.fly.dev/api/auth/:path*" },
     { "source": "/api/:path*", "destination": "https://chatbot-backend-fly.fly.dev/api/:path*" },

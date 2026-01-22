@@ -11,7 +11,7 @@
 <script>
 (function () {
   const STORAGE_KEY = "chatiip_app_version";
-  const FALLBACK_VERSION = "20260122203703";
+  const FALLBACK_VERSION = "20260122202136";
   const u = new URL(window.location.href);
   let v = u.searchParams.get("v") || "";
   if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
@@ -72,9 +72,11 @@
     .cat-item:hover .cat-item-title { color:#2563eb; }
     .empty { color: var(--muted); padding:30px 0; }
   </style>
+    <!-- FAVICON (applies site-wide) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260122202136" />
+    <link rel="apple-touch-icon" href="favicon.ico?v=20260122202136" />
 
-    <link rel="icon" href="favicon.ico" />
-    <link rel="apple-touch-icon" href="favicon.ico" />
 </head>
 
 <body data-page="category">
