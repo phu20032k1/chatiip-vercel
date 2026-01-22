@@ -43,7 +43,7 @@ async function logToGoogle(payload) {
 
 
 // ====================  BACKEND CHAT SESSION (HISTORY)  ====================
-const CHAT_HISTORY_BASE_URL = "https://luat-lao-dong.onrender.com/history";
+const CHAT_HISTORY_BASE_URL = "https://botchat.iipmap.com/history";
 
 // Auth guard: when NOT logged in, do not persist chat/history to localStorage.
 function __isLoggedInLS() {
@@ -905,7 +905,9 @@ function createIipMapCard({ title, subtitle }) {
     try {
         const stopBubble = (ev) => { try { ev.stopPropagation(); } catch (_) {} };
         const stopAndPrevent = (ev) => {
-            try { ev.preventDefault?.(); } catch (_) {}
+            // Avoid "Ignored attempt to cancel a touchmove event with cancelable=false" warnings
+            // while still preventing parent scroll when the event is cancelable.
+            try { if (ev && ev.cancelable) ev.preventDefault?.(); } catch (_) {}
             try { ev.stopPropagation?.(); } catch (_) {}
         };
 
@@ -2214,10 +2216,13 @@ function scrollToBottom(behavior = "smooth", force = false) {
             }
 
             if (shouldBlock) {
-                try { e.preventDefault(); } catch (_) {}
-                try { e.stopPropagation(); } catch (_) {}
-            }
-        }, { capture: true, passive: false });
+    // IMPORTANT: Do NOT preventDefault on wheel/touch for scrollable lists/tables,
+    // otherwise the inner scroller itself will not scroll (causes "kẹt" / stuck scrolling).
+    // We only stop propagation to avoid parent/chat container reacting to the gesture.
+    try { e.stopPropagation(); } catch (_) {}
+    try { e.cancelBubble = true; } catch (_) {}
+}
+}, { capture: true, passive: false });
 
         // Touch move: tương tự wheel (chỉ chặn khi vùng con còn cuộn được)
         let lastTouchY = 0;
@@ -2243,10 +2248,71 @@ function scrollToBottom(behavior = "smooth", force = false) {
 
             const shouldBlock = (dy > 0 && wrap.scrollTop + wrap.clientHeight < wrap.scrollHeight - 1) || (dy < 0 && wrap.scrollTop > 0);
             if (shouldBlock) {
-                try { e.preventDefault(); } catch (_) {}
-                try { e.stopPropagation(); } catch (_) {}
+    // IMPORTANT: Do NOT preventDefault on wheel/touch for scrollable lists/tables,
+    // otherwise the inner scroller itself will not scroll (causes "kẹt" / stuck scrolling).
+    // We only stop propagation to avoid parent/chat container reacting to the gesture.
+    try { e.stopPropagation(); } catch (_) {}
+    try { e.cancelBubble = true; } catch (_) {}
+}
+}, { capture: true, passive: false });
+
+
+        // =========================
+        // ⭐ Mobile inner-scroll fix (nested scroll): lock parent chat scroll while interacting with table/cards
+        // Nhiều trình duyệt mobile có thể "giành" gesture cho container cha, khiến bảng/danh sách không cuộn được.
+        // Chiến lược: khi touchstart nằm trong .data-table-wrap / .data-cards-wrap và vùng con có thể cuộn,
+        // tạm thời khoá scroll của chat-container (overflow-y: hidden) để gesture ưu tiên cho vùng con.
+        // Không dùng preventDefault() để tránh cảnh báo cancelable=false và tránh phá click/tap.
+        // =========================
+        let activeInner = null;
+
+        const isInnerScrollable = (el) => {
+            if (!el) return false;
+            return (el.scrollHeight > el.clientHeight + 1) || (el.scrollWidth > el.clientWidth + 1);
+        };
+
+        const lockChatScroll = (lock) => {
+            const chat = document.querySelector('.chat-container');
+            if (!chat) return;
+            if (lock) {
+                if (chat.dataset.__ovY === undefined) chat.dataset.__ovY = (chat.style.overflowY || '');
+                chat.style.overflowY = 'hidden';
+            } else {
+                if (chat.dataset.__ovY !== undefined) {
+                    chat.style.overflowY = chat.dataset.__ovY || '';
+                    delete chat.dataset.__ovY;
+                } else {
+                    chat.style.overflowY = '';
+                }
             }
-        }, { capture: true, passive: false });
+        };
+
+        document.addEventListener('touchstart', (e) => {
+            const wrap = closestRich(e.target);
+            if (!wrap) { activeInner = null; lockChatScroll(false); return; }
+
+            if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) {
+                activeInner = null; lockChatScroll(false); return;
+            }
+
+            if (!isInnerScrollable(wrap)) { activeInner = null; lockChatScroll(false); return; }
+
+            activeInner = wrap;
+            try { __markRichInteraction(); } catch (_) {}
+            lockChatScroll(true);
+        }, { capture: true, passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!activeInner) return;
+            // Mark interaction + chặn lan sự kiện lên container cha; native scrolling của vùng con vẫn hoạt động.
+            try { __markRichInteraction(); } catch (_) {}
+            try { e.stopPropagation(); } catch (_) {}
+            try { e.cancelBubble = true; } catch (_) {}
+        }, { capture: true, passive: true });
+
+        ['touchend', 'touchcancel'].forEach((evt) => {
+            document.addEventListener(evt, () => { activeInner = null; lockChatScroll(false); }, { capture: true, passive: true });
+        });
 
     } catch (e) {
         console.warn('RICH_SCROLL_GUARDS init failed', e);
@@ -2983,7 +3049,7 @@ function sendMessage() {
             ? { question: message, session_id: backendSessionId }
             : { question: message };
 
-        fetch("https://luat-lao-dong.onrender.com/chat", {
+        fetch("https://botchat.iipmap.com/chat", {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -3358,25 +3424,39 @@ try {
 				let displayText = (m.text ?? m.content ?? "");
                 let vizData = m.vizData || null;
 
-				// Nếu cache không có vizData, thử parse JSON từ raw/text
-                try {
-                    if (!vizData && typeof raw === "string") {
-                        const parsed = tryParseJsonDeep(raw, 3);
-						if (parsed && typeof parsed === "object") {
-							// 1) Nếu là viz -> render viz + caption (tránh JSON thô)
-							if (looksLikeStructuredViz(parsed)) {
-								vizData = parsed;
-								displayText = (parsed.answer ?? parsed.message ?? parsed.text);
-								const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
-								if (!hasText) displayText = getVizDefaultCaption(parsed);
-							}
-							// 2) Không phải viz nhưng text bị rơi -> dùng parsed để dựng lại bảng
-							else if (displayText === "[object Object]" || displayText === "" || displayText == null) {
-								displayText = parsed;
-							}
-						}
-                    }
-                } catch (_) {}
+				// Nếu cache không có vizData, thử phục hồi viz từ raw/text (string) hoặc từ object trực tiếp
+try {
+    if (!vizData) {
+        // 1) raw là object (backend có thể trả JSON object thay vì string)
+        if (raw && typeof raw === "object" && looksLikeStructuredViz(raw)) {
+            vizData = raw;
+            displayText = (raw.answer ?? raw.message ?? raw.text);
+            const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
+            if (!hasText) displayText = getVizDefaultCaption(raw);
+        }
+        // 2) raw là string: thử parse sâu
+        else if (typeof raw === "string") {
+            const parsed = tryParseJsonDeep(raw, 3);
+            if (parsed && typeof parsed === "object") {
+                if (looksLikeStructuredViz(parsed)) {
+                    vizData = parsed;
+                    displayText = (parsed.answer ?? parsed.message ?? parsed.text);
+                    const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
+                    if (!hasText) displayText = getVizDefaultCaption(parsed);
+                } else if (displayText === "[object Object]" || displayText === "" || displayText == null) {
+                    displayText = parsed;
+                }
+            }
+        }
+        // 3) displayText hiện tại là object viz
+        if (!vizData && displayText && typeof displayText === "object" && looksLikeStructuredViz(displayText)) {
+            vizData = displayText;
+            displayText = (vizData.answer ?? vizData.message ?? vizData.text);
+            const hasText = (typeof displayText === "string") ? displayText.trim().length > 0 : displayText != null;
+            if (!hasText) displayText = getVizDefaultCaption(vizData);
+        }
+    }
+} catch (_) {}
 
                 const botEl = addBotMessage(displayText, { question: q });
 
@@ -3452,24 +3532,41 @@ try {
 
                 if (role === 'ai' || role === 'assistant' || role === 'system') {
                     let vizData = null;
-					// Giữ nguyên kiểu để dựng lại bảng từ JSON (tránh "[object Object]")
-					let displayText = content;
+                    // Giữ nguyên kiểu để dựng lại bảng từ JSON (tránh "[object Object]")
+                    let displayText = content;
                     try {
-                        if (typeof content === 'string') {
+                        // 1) content là object (server có thể trả JSON object thay vì string)
+                        if (content && typeof content === 'object') {
+                            if (looksLikeStructuredViz(content)) {
+                                vizData = content;
+                                displayText = (content.answer ?? content.message ?? content.text);
+                                const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
+                                if (!hasText) displayText = getVizDefaultCaption(content);
+                            } else {
+                                // giữ nguyên object/array để normalizeBotMessage tự dựng bảng/format
+                                displayText = content;
+                            }
+                        }
+                        // 2) content là string: parse sâu để phục hồi viz/bảng
+                        else if (typeof content === 'string') {
                             const parsed = tryParseJsonDeep(content, 3);
-							if (parsed && typeof parsed === 'object') {
-								// 1) Viz -> render viz, bubble chỉ hiện caption/text (không lộ JSON thô)
-								if (looksLikeStructuredViz(parsed)) {
-									vizData = parsed;
-									displayText = (parsed.answer ?? parsed.message ?? parsed.text);
-									const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
-									if (!hasText) displayText = getVizDefaultCaption(parsed);
-								}
-								// 2) Không phải viz nhưng content là JSON array/object -> dùng parsed để dựng bảng
-								else {
-									displayText = parsed;
-								}
-							}
+                            if (parsed && typeof parsed === 'object') {
+                                if (looksLikeStructuredViz(parsed)) {
+                                    vizData = parsed;
+                                    displayText = (parsed.answer ?? parsed.message ?? parsed.text);
+                                    const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
+                                    if (!hasText) displayText = getVizDefaultCaption(parsed);
+                                } else {
+                                    displayText = parsed; // array/object -> dựng bảng
+                                }
+                            }
+                        }
+                        // 3) displayText đang là viz object
+                        if (!vizData && displayText && typeof displayText === 'object' && looksLikeStructuredViz(displayText)) {
+                            vizData = displayText;
+                            displayText = (vizData.answer ?? vizData.message ?? vizData.text);
+                            const hasText = (typeof displayText === 'string') ? displayText.trim().length > 0 : displayText != null;
+                            if (!hasText) displayText = getVizDefaultCaption(vizData);
                         }
                     } catch (_) {}
 
@@ -4036,7 +4133,7 @@ try {
         });
 
         try {
-            const res = await fetch('https://luat-lao-dong.onrender.com/chat', {
+            const res = await fetch('https://botchat.iipmap.com/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question })
@@ -4139,7 +4236,7 @@ logToGoogle({
     }
 
     async function postChat(question) {
-        const res = await fetch('https://luat-lao-dong.onrender.com/chat', {
+        const res = await fetch('https://botchat.iipmap.com/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question })
@@ -4559,7 +4656,7 @@ logToGoogle({
             ? { question: text, session_id: backendSessionId }
             : { question: text };
 
-        fetch("https://luat-lao-dong.onrender.com/chat", {
+        fetch("https://botchat.iipmap.com/chat", {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4863,6 +4960,31 @@ logToGoogle({
         const u0 = getLoggedInUser && getLoggedInUser();
         if (u0 && u0.id) pullSessionsFromServer(u0);
     } catch (_) {}
+
+// ---------- Live multi-device sync ----------
+// Người dùng chat trên thiết bị khác (điện thoại) → PC cần tự pull danh sách session mới.
+// Cơ chế: poll nhẹ, chỉ khi đang đăng nhập và tab đang visible.
+let __lastSessionsPullAt = 0;
+function maybePullSessions() {
+    try {
+        const u = getLoggedInUser && getLoggedInUser();
+        if (!u || !u.id) return;
+        if (document.hidden) return;
+        const now = Date.now();
+        // throttle để tránh spam
+        if (now - __lastSessionsPullAt < 20000) return; // 20s
+        __lastSessionsPullAt = now;
+        pullSessionsFromServer(u);
+    } catch (_) {}
+}
+
+try {
+    // poll định kỳ
+    setInterval(maybePullSessions, 25000); // 25s
+    // pull lại khi quay về tab
+    window.addEventListener("focus", maybePullSessions);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) maybePullSessions(); });
+} catch (_) {}
 
     function upsertSession(userId, sessionId, patch = {}) {
         if (!userId || !sessionId) return;
