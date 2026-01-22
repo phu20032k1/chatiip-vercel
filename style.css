@@ -1671,36 +1671,16 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
 }
 
 @media (max-width: 768px){
-    /*
-      Mobile: avoid nested scrolling inside chat bubbles.
-      Many mobile browsers (notably iOS Safari) can fail to scroll an inner overflow:auto
-      region when it sits inside another scroll container.
-      Strategy: allow rich tables/lists to expand and rely on the main chat scroll.
-      (Horizontal overflow is still handled by compact tables / responsive layouts.)
-    */
-    .data-table-wrap{
-        max-height: none;
-        overflow-y: visible;
-        overflow-x: visible;
-    }
-    /* Keep compact tables truly compact on mobile */
-    .data-table:not(.data-table-compact){
+    .data-table-wrap{ max-height: min(55vh, 560px); }
+    .data-table{
         min-width: 680px;
+        font-size: 12px;
     }
-    .data-table{ font-size: 12px; }
     .data-table th,
     .data-table td{ padding: 8px 10px; }
     /* Sticky first column can feel glitchy on mobile; disable for smoother UX */
     .data-table .col-stt{ position: static; }
     .data-table thead th.col-stt{ position: sticky; left: 0; }
-}
-
-@media (max-width: 768px){
-    .data-cards-wrap{
-        max-height: none;
-        overflow: visible;
-        padding: 10px;
-    }
 }
 
 .data-table th,
@@ -1789,15 +1769,6 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-x pan-y;
-}
-
-@media (max-width: 768px){
-    /* Same rationale as .data-table-wrap: avoid nested scrolling issues on mobile */
-    .data-cards-wrap{
-        max-height: none;
-        overflow: visible;
-        padding: 8px;
-    }
 }
 
 .data-cards{

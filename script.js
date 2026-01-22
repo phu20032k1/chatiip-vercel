@@ -474,6 +474,82 @@ const PROVINCE_MERGE_FALLBACK = (() => {
 })();
 
 
+// =========================
+// ⭐ MOBILE_INNER_SCROLL_SHIM
+// Một số trình duyệt mobile (đặc biệt iOS) có thể ưu tiên cuộn container cha
+// (chat-container) thay vì vùng overflow:auto con (bảng/danh sách), làm cảm giác
+// "kẹt" khi cố lướt trong bảng. Shim này ép cuộn đúng vùng con khi người dùng
+// kéo trong .data-table-wrap / .data-cards-wrap.
+// =========================
+(function MOBILE_INNER_SCROLL_SHIM() {
+    try {
+        const selector = '.data-table-wrap, .data-cards-wrap';
+        let activeWrap = null;
+        let lastX = 0;
+        let lastY = 0;
+
+        const isScrollableY = (el) => el && el.scrollHeight > el.clientHeight + 1;
+        const isScrollableX = (el) => el && el.scrollWidth > el.clientWidth + 1;
+
+        const onTouchStart = (e) => {
+            const t = e.touches && e.touches[0];
+            if (!t) return;
+            const wrap = e.target && e.target.closest ? e.target.closest(selector) : null;
+            if (!wrap) { activeWrap = null; return; }
+            activeWrap = wrap;
+            lastX = t.clientX;
+            lastY = t.clientY;
+            try { __markRichInteraction(); } catch (_) {}
+        };
+
+        const onTouchMove = (e) => {
+            if (!activeWrap) return;
+            const t = e.touches && e.touches[0];
+            if (!t) return;
+
+            const dx = lastX - t.clientX;
+            const dy = lastY - t.clientY;
+            lastX = t.clientX;
+            lastY = t.clientY;
+
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+            const useY = absY >= absX;
+
+            // Nếu vùng con không thể cuộn theo hướng đó, để trình duyệt xử lý bình thường
+            if (useY) {
+                if (!isScrollableY(activeWrap)) return;
+                const atTop = activeWrap.scrollTop <= 0;
+                const atBottom = activeWrap.scrollTop + activeWrap.clientHeight >= activeWrap.scrollHeight - 1;
+                // Nếu đang ở biên và kéo ra ngoài, để chain lên cha (UX tự nhiên)
+                if ((dy < 0 && atTop) || (dy > 0 && atBottom)) return;
+                activeWrap.scrollTop += dy;
+            } else {
+                if (!isScrollableX(activeWrap)) return;
+                const atLeft = activeWrap.scrollLeft <= 0;
+                const atRight = activeWrap.scrollLeft + activeWrap.clientWidth >= activeWrap.scrollWidth - 1;
+                if ((dx < 0 && atLeft) || (dx > 0 && atRight)) return;
+                activeWrap.scrollLeft += dx;
+            }
+
+            // Ngăn container cha (chat) bắt gesture
+            try { e.preventDefault(); } catch (_) {}
+            try { e.stopPropagation(); } catch (_) {}
+            try { e.cancelBubble = true; } catch (_) {}
+        };
+
+        const onTouchEnd = () => { activeWrap = null; };
+
+        document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
+        document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+        document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
+        document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: true });
+    } catch (e) {
+        console.warn('MOBILE_INNER_SCROLL_SHIM init failed', e);
+    }
+})();
+
+
 function mapProvinceNameToGeo(provinceText) {
     const norm = normalizeViText(provinceText);
     if (!norm) return provinceText || "";
@@ -905,9 +981,7 @@ function createIipMapCard({ title, subtitle }) {
     try {
         const stopBubble = (ev) => { try { ev.stopPropagation(); } catch (_) {} };
         const stopAndPrevent = (ev) => {
-            // Avoid "Ignored attempt to cancel a touchmove event with cancelable=false" warnings
-            // while still preventing parent scroll when the event is cancelable.
-            try { if (ev && ev.cancelable) ev.preventDefault?.(); } catch (_) {}
+            try { ev.preventDefault?.(); } catch (_) {}
             try { ev.stopPropagation?.(); } catch (_) {}
         };
 
@@ -2258,60 +2332,67 @@ function scrollToBottom(behavior = "smooth", force = false) {
 
 
         // =========================
-        // ⭐ Mobile inner-scroll fix (nested scroll): lock parent chat scroll while interacting with table/cards
-        // Nhiều trình duyệt mobile có thể "giành" gesture cho container cha, khiến bảng/danh sách không cuộn được.
-        // Chiến lược: khi touchstart nằm trong .data-table-wrap / .data-cards-wrap và vùng con có thể cuộn,
-        // tạm thời khoá scroll của chat-container (overflow-y: hidden) để gesture ưu tiên cho vùng con.
-        // Không dùng preventDefault() để tránh cảnh báo cancelable=false và tránh phá click/tap.
+        // ⭐ Mobile inner-scroll shim
+        // Một số trình duyệt mobile (đặc biệt iOS/Safari) có hành vi không ổn định với nested scroll
+        // (parent chat-container scroll + child overflow:auto). Kết quả: "không lướt được" bảng/danh sách.
+        // Shim này đảm bảo khi người dùng kéo trong vùng .data-table-wrap / .data-cards-wrap,
+        // chính vùng đó sẽ nhận scroll, đồng thời ngăn parent giành gesture.
         // =========================
         let activeInner = null;
+        let lastInnerY = 0;
 
         const isInnerScrollable = (el) => {
             if (!el) return false;
-            return (el.scrollHeight > el.clientHeight + 1) || (el.scrollWidth > el.clientWidth + 1);
-        };
-
-        const lockChatScroll = (lock) => {
-            const chat = document.querySelector('.chat-container');
-            if (!chat) return;
-            if (lock) {
-                if (chat.dataset.__ovY === undefined) chat.dataset.__ovY = (chat.style.overflowY || '');
-                chat.style.overflowY = 'hidden';
-            } else {
-                if (chat.dataset.__ovY !== undefined) {
-                    chat.style.overflowY = chat.dataset.__ovY || '';
-                    delete chat.dataset.__ovY;
-                } else {
-                    chat.style.overflowY = '';
-                }
-            }
+            const canY = el.scrollHeight > el.clientHeight + 1;
+            return canY;
         };
 
         document.addEventListener('touchstart', (e) => {
             const wrap = closestRich(e.target);
-            if (!wrap) { activeInner = null; lockChatScroll(false); return; }
-
+            if (!wrap) { activeInner = null; return; }
             if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) {
-                activeInner = null; lockChatScroll(false); return;
+                activeInner = null;
+                return;
             }
+            if (!isInnerScrollable(wrap)) { activeInner = null; return; }
 
-            if (!isInnerScrollable(wrap)) { activeInner = null; lockChatScroll(false); return; }
-
+            const t = e.touches && e.touches[0];
+            if (!t) { activeInner = null; return; }
             activeInner = wrap;
-            try { __markRichInteraction(); } catch (_) {}
-            lockChatScroll(true);
+            lastInnerY = t.clientY;
         }, { capture: true, passive: true });
 
         document.addEventListener('touchmove', (e) => {
             if (!activeInner) return;
-            // Mark interaction + chặn lan sự kiện lên container cha; native scrolling của vùng con vẫn hoạt động.
+            const t = e.touches && e.touches[0];
+            if (!t) return;
+
+            const dy = lastInnerY - t.clientY; // dy>0: scroll down
+            lastInnerY = t.clientY;
+
+            const el = activeInner;
+            if (!isInnerScrollable(el)) return;
+
+            // Chỉ "giành" gesture khi vùng con còn khả năng cuộn theo hướng đó.
+            const atTop = el.scrollTop <= 0;
+            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+            const wantsDown = dy > 0;
+            const wantsUp = dy < 0;
+
+            const canConsume = (wantsDown && !atBottom) || (wantsUp && !atTop);
+            if (!canConsume) return; // cho phép parent scroll khi chạm biên
+
             try { __markRichInteraction(); } catch (_) {}
+
+            // Thực hiện scroll trực tiếp lên vùng con và chặn parent container.
+            try { el.scrollTop += dy; } catch (_) {}
+            try { e.preventDefault(); } catch (_) {}
             try { e.stopPropagation(); } catch (_) {}
             try { e.cancelBubble = true; } catch (_) {}
-        }, { capture: true, passive: true });
+        }, { capture: true, passive: false });
 
         ['touchend', 'touchcancel'].forEach((evt) => {
-            document.addEventListener(evt, () => { activeInner = null; lockChatScroll(false); }, { capture: true, passive: true });
+            document.addEventListener(evt, () => { activeInner = null; }, { capture: true, passive: true });
         });
 
     } catch (e) {
