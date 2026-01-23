@@ -1893,6 +1893,75 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginPromptLoginBtn = document.getElementById('loginPromptLoginBtn');
     const loginPromptSignupBtn = document.getElementById('loginPromptSignupBtn');
 
+    // =========================
+    // Auto-hide composer (message input bar) on scroll down
+    // - Shows again on scroll up, near-bottom, or when the input is focused
+    // =========================
+    (function setupComposerAutoHide(){
+        if (!chatContainer || !messageInputContainer) return;
+
+        let lastTop = chatContainer.scrollTop || 0;
+        let lastTs = 0;
+
+        const showComposer = () => document.body.classList.remove('composer-hidden');
+        const hideComposer = () => document.body.classList.add('composer-hidden');
+
+        const isNearBottom = () => {
+            const dist = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+            return dist < 90;
+        };
+
+        // Keep composer visible while typing
+        messageInput.addEventListener('focus', showComposer);
+        messageInput.addEventListener('click', showComposer);
+        messageInput.addEventListener('input', showComposer);
+
+        // Also show when user taps the composer area
+        messageInputContainer.addEventListener('pointerdown', showComposer, { passive: true });
+
+        // If the UI returns to the "centered" state (e.g., new chat), ensure the composer is visible.
+        try {
+            const mo = new MutationObserver(() => {
+                if (messageInputContainer.classList.contains('centered')) showComposer();
+            });
+            mo.observe(messageInputContainer, { attributes: true, attributeFilter: ['class'] });
+        } catch (_) {
+            // ignore
+        }
+
+        chatContainer.addEventListener('scroll', () => {
+            // Only apply when we are in "has messages" state (composer is bottom-fixed)
+            if (messageInputContainer.classList.contains('centered')) return;
+
+            const now = Date.now();
+            // Throttle for performance
+            if (now - lastTs < 40) return;
+            lastTs = now;
+
+            const top = chatContainer.scrollTop;
+            const delta = top - lastTop;
+            lastTop = top;
+
+            // Ignore tiny scroll jitter
+            if (Math.abs(delta) < 4) return;
+
+            // Never hide when near bottom (so user can continue to type quickly)
+            if (isNearBottom()) {
+                showComposer();
+                return;
+            }
+
+            // Never hide while focused
+            if (document.activeElement === messageInput) {
+                showComposer();
+                return;
+            }
+
+            if (delta > 0) hideComposer();
+            else showComposer();
+        }, { passive: true });
+    })();
+
 
     
 
@@ -2932,6 +3001,9 @@ function sendMessage() {
         const message = messageInput.value.trim();
         if (!message) return;
 
+        // Nếu đang đọc to câu trả lời trước đó thì dừng lại khi user gửi tin nhắn mới.
+        try { stopTTS(); } catch (_) {}
+
         // Đếm số câu hỏi của khách và hiển thị modal khi đến câu thứ 5
         try {
             const isGuestUser = (typeof isLoggedIn === "function") ? !isLoggedIn() : !(getLoggedInUser && getLoggedInUser()?.id);
@@ -2996,10 +3068,14 @@ function sendMessage() {
         messageInput.style.overflowY = "hidden";
 
         // Mỗi lần gửi tin nhắn: hủy request cũ và tạo request mới
+        // (also cancels any active typewriter)
+        try { cancelActiveTypewriter(true); } catch (_) {}
         abortActiveChatRequest();
         const __myNonce = __chatReqNonce;
         __chatAbortCtrl = (window.AbortController ? new AbortController() : null);
 
+        __uiIsGenerating = true;
+        setSendButtonMode('stop');
         showTypingIndicator();
 
         const backendSessionId = getBackendSessionId();
@@ -3070,7 +3146,29 @@ function sendMessage() {
 					if (!hasText) displayText = getVizDefaultCaption(parsedFromAnswer);
 				}
 
-				const botEl = addBotMessage(displayText, { messageId, question: message });
+
+				// Decide whether to animate (typewriter) for the *current* live reply.
+				const normalizedForAnim = normalizeBotMessage(displayText);
+				let botEl;
+				if (shouldAnimateBotText(displayText, normalizedForAnim)) {
+					botEl = addBotMessage("", { messageId, question: message });
+					const bubble = botEl ? botEl.querySelector('.message-bubble') : null;
+					__uiActiveTypewriter = runTypewriter(
+						bubble,
+						String(displayText ?? ''),
+						normalizedForAnim.html,
+						() => {
+							__uiIsGenerating = false;
+							__uiActiveTypewriter = null;
+							setSendButtonMode('send');
+						}
+					);
+				} else {
+					botEl = addBotMessage(displayText, { messageId, question: message });
+					// No animation -> generation considered complete now.
+					__uiIsGenerating = false;
+					setSendButtonMode('send');
+				}
 
                 // ✅ Chart cũ (excel_visualize) + chart mới (chartjs) + flowchart (mermaid)
                 handleExcelVisualizeResponse(effectiveData, botEl);
@@ -3134,16 +3232,136 @@ function sendMessage() {
                 if (err && (err.name === "AbortError")) return;
 
                 hideTypingIndicator();
+
+				// reset UI state
+				__uiIsGenerating = false;
+				setSendButtonMode('send');
                 addBotMessage("⚠️ Lỗi kết nối đến chatbot Render.");
             });
     }
 
 
-    sendButton.addEventListener('click', sendMessage);
+    // ====================  UI: GENERATING STATE (STOP BUTTON + TYPEWRITER)  ====================
+    // Only used for the *current* live assistant reply (NOT for history rendering).
+    let __uiIsGenerating = false;
+    let __uiActiveTypewriter = null; // { cancel: fn, isRunning: bool }
+
+    function setSendButtonMode(mode) {
+        try {
+            const icon = sendButton ? sendButton.querySelector('i') : null;
+            if (!sendButton || !icon) return;
+
+            if (mode === 'stop') {
+                sendButton.classList.add('is-generating');
+                sendButton.setAttribute('aria-label', 'Dừng');
+                icon.className = 'fas fa-stop';
+            } else {
+                sendButton.classList.remove('is-generating');
+                sendButton.setAttribute('aria-label', 'Gửi');
+                icon.className = 'fas fa-arrow-up';
+            }
+        } catch (_) {}
+    }
+
+    function cancelActiveTypewriter(keepPartial = true) {
+        try {
+            if (__uiActiveTypewriter && typeof __uiActiveTypewriter.cancel === 'function') {
+                __uiActiveTypewriter.cancel(keepPartial);
+            }
+        } catch (_) {}
+        __uiActiveTypewriter = null;
+    }
+
+    function stopActiveGeneration() {
+        // Stop network request (if any) + stop typewriter (if any)
+        try { abortActiveChatRequest(); } catch (_) {}
+        cancelActiveTypewriter(true);
+        __uiIsGenerating = false;
+        setSendButtonMode('send');
+    }
+
+    function onSendButtonActivated() {
+        if (__uiIsGenerating) {
+            stopActiveGeneration();
+            return;
+        }
+        sendMessage();
+    }
+
+    function shouldAnimateBotText(displayText, normalized) {
+        if (typeof displayText !== 'string') return false;
+        const txt = displayText.trim();
+        if (!txt) return false;
+        // Skip if message is already HTML/structured (tables/charts/maps)
+        if (normalized && normalized.isHTML) return false;
+        if (/(data-table|data-block|excel-viz|chartjs-viz|mermaid|map-wrap|leaflet|maplibre)/i.test(String(normalized?.html || ''))) {
+            return false;
+        }
+        return true;
+    }
+
+    function runTypewriter(bubbleEl, finalText, finalHtml, onDone) {
+        if (!bubbleEl) return null;
+
+        // Use plain text streaming first, then swap to formatted HTML at the end.
+        bubbleEl.classList.add('streaming');
+        bubbleEl.innerHTML = `<div class="streaming-text"></div>`;
+        const streamNode = bubbleEl.querySelector('.streaming-text');
+
+        const text = String(finalText ?? '');
+        const cps = 220; // fast
+        let i = 0;
+        let lastTs = performance.now();
+        let cancelled = false;
+
+        const step = (ts) => {
+            if (cancelled) return;
+            const dt = Math.max(0, ts - lastTs);
+            lastTs = ts;
+            const advance = Math.max(1, Math.floor((dt / 1000) * cps));
+            i = Math.min(text.length, i + advance);
+            if (streamNode) streamNode.textContent = text.slice(0, i);
+
+            // keep view pinned to bottom while streaming
+            try { scrollToBottom('auto', true); } catch (_) {}
+
+            if (i >= text.length) {
+                bubbleEl.classList.remove('streaming');
+                // swap to full formatted HTML
+                bubbleEl.innerHTML = finalHtml;
+                if (typeof onDone === 'function') onDone();
+                return;
+            }
+            requestAnimationFrame(step);
+        };
+
+        requestAnimationFrame(step);
+
+        return {
+            isRunning: () => !cancelled && i < text.length,
+            cancel: (keepPartial) => {
+                cancelled = true;
+                bubbleEl.classList.remove('streaming');
+                if (keepPartial) {
+                    // keep current plain text (no HTML formatting)
+                    bubbleEl.innerHTML = `<div class="streaming-text"></div>`;
+                    const n = bubbleEl.querySelector('.streaming-text');
+                    if (n) n.textContent = text.slice(0, i);
+                } else {
+                    bubbleEl.innerHTML = finalHtml;
+                }
+                if (typeof onDone === 'function') onDone(true);
+            }
+        };
+    }
+
+
+    // Click: send OR stop (when generating)
+    sendButton.addEventListener('click', onSendButtonActivated);
     messageInput.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            onSendButtonActivated();
         }
     });
 
@@ -3318,6 +3536,7 @@ try {
                 <div class="message-actions">
                     ${renderActionButton('like', 'fa-regular fa-thumbs-up', 'Đồng ý')}
                     ${renderActionButton('dislike', 'fa-regular fa-thumbs-down', 'Không đồng ý')}
+                    ${renderActionButton('tts', 'fa-solid fa-volume-high', 'Đọc')}
                     ${renderActionButton('refresh', 'fa-solid fa-arrows-rotate', 'Trả lời lại')}
                     ${renderActionButton('copy', 'fa-regular fa-copy', 'Sao chép')}
                     ${renderActionButton('share', 'fa-solid fa-share-nodes', 'Chia sẻ')}
@@ -3425,12 +3644,16 @@ try {
         if (!chatContainer) return;
         const backendSessionId = getBackendSessionId();
 
+        // Track whether we were able to render anything from cache.
+        let renderedFromCache = false;
+
         // 1) Hiển thị ngay từ cache (nếu có) để load gần như tức thì
         try {
             const key = backendSessionId ? getChatCacheKey(backendSessionId) : CHAT_CACHE_PENDING_KEY;
             const cached = readChatCacheByKey(key);
             if (cached && Array.isArray(cached.messages) && cached.messages.length) {
                 renderChatHistoryFast(cached.messages);
+                renderedFromCache = true;
             }
         } catch (_) {}
 
@@ -3443,6 +3666,14 @@ try {
             if (!res.ok) {
                 if (res.status === 404 || res.status === 410) {
                     clearBackendSessionId();
+                }
+                // If we couldn't render from cache, replace loading state with a friendly error.
+                if (!renderedFromCache) {
+                    try {
+                        const loadingEl = chatContainer.querySelector('.loading-message');
+                        if (loadingEl) loadingEl.remove();
+                    } catch (_) {}
+                    try { addBotMessage('Không thể tải đoạn chat này. Vui lòng thử lại.'); } catch (_) {}
                 }
                 return;
             }
@@ -3512,7 +3743,58 @@ try {
             renderChatHistoryFast(converted);
         } catch (err) {
             console.warn('Không thể tải lịch sử hội thoại', err);
+
+            if (!renderedFromCache) {
+                try {
+                    const loadingEl = chatContainer.querySelector('.loading-message');
+                    if (loadingEl) loadingEl.remove();
+                } catch (_) {}
+                try { addBotMessage('Không thể tải đoạn chat này. Vui lòng thử lại.'); } catch (_) {}
+            }
         }
+    }
+
+    // Show immediate UI feedback when a user selects a history item (avoid "nothing happens" delay).
+    function showHistoryLoadingPlaceholder() {
+        if (!chatContainer) return;
+
+        // Stop any in-flight live generation to avoid mixing responses.
+        try {
+            __chatRequestNonce++;
+            if (__chatAbortController) __chatAbortController.abort();
+        } catch (_) {}
+        __chatAbortController = null;
+        try { hideTypingIndicator(); } catch (_) {}
+        try { abortActiveChatRequest(); } catch (_) {}
+
+        // Clear visible messages and show a lightweight loader.
+        try {
+            const existing = chatContainer.querySelectorAll('.message');
+            existing.forEach(m => m.remove());
+        } catch (_) {}
+
+        if (welcomeMessage) welcomeMessage.style.display = 'none';
+        messageInputContainer.classList.remove('centered');
+        chatContainer.classList.add('has-messages');
+
+        const el = document.createElement('div');
+        el.className = 'message bot-message loading-message';
+        el.innerHTML = `
+            <div class="message-bubble bot-bubble">
+                <div class="loading-row">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <div class="loading-title">Đang tải đoạn chat…</div>
+                </div>
+                <div class="skel" aria-hidden="true">
+                    <div class="skel-line" style="width: 78%"></div>
+                    <div class="skel-line" style="width: 92%"></div>
+                    <div class="skel-line" style="width: 68%"></div>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(el);
+
+        try { setTimeout(() => scrollToBottom('auto', true), 20); } catch (_) {}
     }
 
 // ====================  EXCEL VISUALIZE (CHART/TABLE)  ====================
@@ -4034,7 +4316,233 @@ try {
         }, duration);
     }
 
+    // ====================  TTS (GOOGLE CLOUD)  ====================
+    // Frontend chỉ gọi backend (/api/tts). Không bao giờ nhúng API key ở frontend.
+    // Lưu ý dev-local: nếu bạn mở index.html bằng Live Server (5500/5501),
+    // thì cần gọi qua backend (8080) thay vì gọi tương đối cùng origin.
+    const __TTS_ENDPOINT =
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+            ? "http://localhost:8080/api/tts"
+            : "/api/tts";
+    const __ttsState = {
+        audio: null,
+        objectUrl: null,
+        isLoading: false,
+        currentKey: "",
+        currentBotEl: null,
+        currentBtn: null,
+        cache: new Map() // key -> Blob
+    };
+
+    function __ttsInit() {
+        if (__ttsState.audio) return;
+        __ttsState.audio = new Audio();
+        __ttsState.audio.preload = 'auto';
+        __ttsState.audio.addEventListener('ended', () => {
+            try { __ttsResetUI(); } catch (_) {}
+        });
+        __ttsState.audio.addEventListener('pause', () => {
+            // When user pauses (not ended), keep state so they can resume.
+            try {
+                if (!__ttsState.isLoading && __ttsState.currentBtn && __ttsState.currentKey) {
+                    const a = __ttsState.audio;
+                    if (a && a.currentTime > 0 && a.currentTime < (a.duration || Infinity)) {
+                        __ttsSetBtnMode(__ttsState.currentBtn, 'paused');
+                    }
+                }
+            } catch (_) {}
+        });
+        __ttsState.audio.addEventListener('play', () => {
+            try {
+                if (!__ttsState.isLoading && __ttsState.currentBtn) {
+                    __ttsSetBtnMode(__ttsState.currentBtn, 'playing');
+                }
+            } catch (_) {}
+        });
+    }
+
+    function __ttsUpdateBtn(btn, iconClass, tipText) {
+        if (!btn) return;
+        try {
+            const i = btn.querySelector('i');
+            if (i) i.className = iconClass;
+            const tip = btn.querySelector('.action-tooltip');
+            if (tip) tip.textContent = tipText;
+            btn.setAttribute('aria-label', tipText);
+        } catch (_) {}
+    }
+
+    function __ttsSetBtnMode(btn, mode) {
+        if (!btn) return;
+        btn.classList.remove('tts-loading', 'tts-playing', 'tts-paused');
+        if (mode === 'loading') {
+            btn.classList.add('tts-loading');
+            __ttsUpdateBtn(btn, 'fa-solid fa-spinner fa-spin', 'Đang tải');
+            return;
+        }
+        if (mode === 'playing') {
+            btn.classList.add('tts-playing');
+            __ttsUpdateBtn(btn, 'fa-solid fa-pause', 'Tạm dừng');
+            return;
+        }
+        if (mode === 'paused') {
+            btn.classList.add('tts-paused');
+            __ttsUpdateBtn(btn, 'fa-solid fa-play', 'Tiếp tục');
+            return;
+        }
+        __ttsUpdateBtn(btn, 'fa-solid fa-volume-high', 'Đọc');
+    }
+
+    function __ttsResetUI() {
+        try {
+            if (__ttsState.currentBtn) __ttsSetBtnMode(__ttsState.currentBtn, 'idle');
+        } catch (_) {}
+        __ttsState.isLoading = false;
+        __ttsState.currentKey = "";
+        __ttsState.currentBotEl = null;
+        __ttsState.currentBtn = null;
+        try {
+            if (__ttsState.audio) {
+                __ttsState.audio.pause();
+                __ttsState.audio.currentTime = 0;
+            }
+        } catch (_) {}
+        try {
+            if (__ttsState.objectUrl) {
+                URL.revokeObjectURL(__ttsState.objectUrl);
+                __ttsState.objectUrl = null;
+            }
+        } catch (_) {}
+        try {
+            if (__ttsState.audio) __ttsState.audio.removeAttribute('src');
+        } catch (_) {}
+    }
+
+    function stopTTS() {
+        // Exposed for other UI flows: new chat / send / regenerate
+        try { __ttsResetUI(); } catch (_) {}
+    }
+
+    function __ttsMakeKey(botEl, answerText) {
+        const mid = (botEl && botEl.dataset && botEl.dataset.messageId) ? String(botEl.dataset.messageId) : "";
+        if (mid) return `mid:${mid}`;
+        // fallback: hash text to avoid repeated calls for history messages
+        return `txt:${hashString(String(answerText || ""))}`;
+    }
+
+    function __ttsCachePut(key, blob) {
+        try {
+            if (!key || !blob) return;
+            __ttsState.cache.set(key, blob);
+            // bound cache size
+            const MAX = 24;
+            if (__ttsState.cache.size > MAX) {
+                const firstKey = __ttsState.cache.keys().next().value;
+                if (firstKey) __ttsState.cache.delete(firstKey);
+            }
+        } catch (_) {}
+    }
+
+    async function __ttsFetchBlob(text) {
+        const res = await fetch(__TTS_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text })
+        });
+        if (!res.ok) {
+            let msg = `Lỗi TTS (${res.status})`;
+            try {
+                const j = await res.json();
+                if (j && j.message) msg = String(j.message);
+            } catch (_) {}
+            const err = new Error(msg);
+            err.status = res.status;
+            throw err;
+        }
+        const ab = await res.arrayBuffer();
+        return new Blob([ab], { type: 'audio/mpeg' });
+    }
+
+    async function playOrToggleTTS(botEl, btn) {
+        if (!botEl || !btn) return;
+        __ttsInit();
+
+        const bubble = botEl.querySelector('.message-bubble');
+        if (!bubble) return;
+
+        // If assistant is still streaming its current reply, don't TTS yet.
+        if (bubble.classList.contains('streaming') || botEl.querySelector('.streaming-text')) {
+            showTempTooltip(btn, 'Đợi trả lời xong');
+            return;
+        }
+
+        const answerText = (bubble.innerText || '').trim();
+        if (!answerText) {
+            showTempTooltip(btn, 'Không có nội dung');
+            return;
+        }
+
+        const key = __ttsMakeKey(botEl, answerText);
+        const a = __ttsState.audio;
+
+        // Same message: toggle play/pause
+        if (key && __ttsState.currentKey === key && a) {
+            if (__ttsState.isLoading) {
+                // allow user to cancel loading
+                stopTTS();
+                showTempTooltip(btn, 'Đã dừng');
+                return;
+            }
+            if (!a.paused) {
+                a.pause();
+                __ttsSetBtnMode(btn, 'paused');
+            } else {
+                try {
+                    await a.play();
+                    __ttsSetBtnMode(btn, 'playing');
+                } catch (_) {
+                    showTempTooltip(btn, 'Không thể phát');
+                }
+            }
+            return;
+        }
+
+        // New message: stop previous
+        stopTTS();
+
+        __ttsState.currentKey = key;
+        __ttsState.currentBotEl = botEl;
+        __ttsState.currentBtn = btn;
+        __ttsState.isLoading = true;
+        __ttsSetBtnMode(btn, 'loading');
+
+        try {
+            let blob = __ttsState.cache.get(key);
+            if (!blob) {
+                blob = await __ttsFetchBlob(answerText);
+                __ttsCachePut(key, blob);
+            }
+
+            __ttsState.objectUrl = URL.createObjectURL(blob);
+            a.src = __ttsState.objectUrl;
+            a.currentTime = 0;
+            __ttsState.isLoading = false;
+            await a.play();
+            __ttsSetBtnMode(btn, 'playing');
+        } catch (err) {
+            __ttsState.isLoading = false;
+            __ttsSetBtnMode(btn, 'idle');
+            const msg = (err && err.message) ? String(err.message) : 'Không thể tạo giọng đọc.';
+            showTempTooltip(btn, msg);
+            try { stopTTS(); } catch (_) {}
+        }
+    }
+
     async function regenerateAnswerFor(botEl) {
+        // Dừng TTS đang phát (nếu có) trước khi trả lời lại.
+        try { stopTTS(); } catch (_) {}
+
         const question = botEl.dataset.question || "";
         const messageId = botEl.dataset.messageId || "";
         if (!question) return;
@@ -4171,6 +4679,9 @@ logToGoogle({
     }
 
     async function submitEditedMessage(userEl, newText) {
+        // Dừng TTS nếu đang phát (tránh đọc nhầm nội dung cũ sau khi sửa)
+        try { stopTTS(); } catch (_) {}
+
         const bubble = userEl.querySelector('.message-bubble');
         if (bubble) bubble.innerHTML = escapeHtml(newText);
         userEl.dataset.text = newText;
@@ -4197,14 +4708,26 @@ logToGoogle({
         });
 
         // Mỗi lần gửi tin nhắn: hủy request cũ và tạo request mới
+        try { cancelActiveTypewriter(true); } catch (_) {}
         abortActiveChatRequest();
         const __myNonce = __chatReqNonce;
         __chatAbortCtrl = (window.AbortController ? new AbortController() : null);
 
+        __uiIsGenerating = true;
+        setSendButtonMode('stop');
         showTypingIndicator();
 
         try {
-            const data = await postChat(newText);
+            const backendSessionId = getBackendSessionId();
+            const payload = backendSessionId ? { question: newText, session_id: backendSessionId } : { question: newText };
+            const res = await fetch('https://botchat.iipmap.com/chat', {
+                signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (__myNonce !== __chatReqNonce) return;
             hideTypingIndicator();
             const answerRaw = (data && (data.answer ?? data.reply)) ?? 'No response.';
 
@@ -4217,7 +4740,26 @@ logToGoogle({
                 ? (parsedFromAnswer.answer ?? parsedFromAnswer.message ?? parsedFromAnswer.text ?? answerRaw)
                 : answerRaw;
 
-            const botEl = addBotMessage(displayText, { messageId, question: newText });
+            const normalizedForAnim = normalizeBotMessage(displayText);
+            let botEl;
+            if (shouldAnimateBotText(displayText, normalizedForAnim)) {
+                botEl = addBotMessage('', { messageId, question: newText });
+                const bubbleEl = botEl ? botEl.querySelector('.message-bubble') : null;
+                __uiActiveTypewriter = runTypewriter(
+                    bubbleEl,
+                    String(displayText ?? ''),
+                    normalizedForAnim.html,
+                    () => {
+                        __uiIsGenerating = false;
+                        __uiActiveTypewriter = null;
+                        setSendButtonMode('send');
+                    }
+                );
+            } else {
+                botEl = addBotMessage(displayText, { messageId, question: newText });
+                __uiIsGenerating = false;
+                setSendButtonMode('send');
+            }
 
             handleExcelVisualizeResponse(effectiveData, botEl);
             handleChartJsResponse(effectiveData, botEl);
@@ -4233,6 +4775,8 @@ logToGoogle({
             });
         } catch (e) {
             hideTypingIndicator();
+            __uiIsGenerating = false;
+            setSendButtonMode('send');
             addBotMessage('⚠️ Lỗi kết nối đến chatbot Render.');
         }
     }
@@ -4323,6 +4867,11 @@ logToGoogle({
         const question = botEl.dataset.question || "";
         const bubble = botEl.querySelector('.message-bubble');
         const answerText = bubble ? bubble.innerText.trim() : "";
+
+        if (action === 'tts') {
+            try { await playOrToggleTTS(botEl, btn); } catch (_) {}
+            return;
+        }
 
         if (action === 'copy') {
             try {
@@ -4551,16 +5100,24 @@ logToGoogle({
         } catch (_) {}
         __chatAbortCtrl = null;
         try { hideTypingIndicator(); } catch (_) {}
+
+        // Also reset stop/typewriter UI when requests are aborted (new chat / stop button / etc.)
+        try { cancelActiveTypewriter(true); } catch (_) {}
+        try { __uiIsGenerating = false; } catch (_) {}
+        try { setSendButtonMode('send'); } catch (_) {}
     }
 
     function sendTextToChatbot(text) {
         if (!text.trim()) return;
 
         // Mỗi lần gửi tin nhắn: hủy request cũ và tạo request mới
+        try { cancelActiveTypewriter(true); } catch (_) {}
         abortActiveChatRequest();
         const __myNonce = __chatReqNonce;
         __chatAbortCtrl = (window.AbortController ? new AbortController() : null);
 
+        __uiIsGenerating = true;
+        setSendButtonMode('stop');
         showTypingIndicator();
 
         const messageId = (window.crypto && crypto.randomUUID)
@@ -4607,7 +5164,26 @@ logToGoogle({
                     ? (parsedFromAnswer.answer ?? parsedFromAnswer.message ?? parsedFromAnswer.text ?? answerRaw)
                     : answerRaw;
 
-                const botEl = addBotMessage(displayText, { messageId, question: text  });
+                const normalizedForAnim = normalizeBotMessage(displayText);
+                let botEl;
+                if (shouldAnimateBotText(displayText, normalizedForAnim)) {
+                    botEl = addBotMessage("", { messageId, question: text });
+                    const bubble = botEl ? botEl.querySelector('.message-bubble') : null;
+                    __uiActiveTypewriter = runTypewriter(
+                        bubble,
+                        String(displayText ?? ''),
+                        normalizedForAnim.html,
+                        () => {
+                            __uiIsGenerating = false;
+                            __uiActiveTypewriter = null;
+                            setSendButtonMode('send');
+                        }
+                    );
+                } else {
+                    botEl = addBotMessage(displayText, { messageId, question: text });
+                    __uiIsGenerating = false;
+                    setSendButtonMode('send');
+                }
 
                 handleExcelVisualizeResponse(effectiveData, botEl);
                 handleChartJsResponse(effectiveData, botEl);
@@ -4628,6 +5204,8 @@ logToGoogle({
                 if (err && (err.name === "AbortError")) return;
 
                 hideTypingIndicator();
+                __uiIsGenerating = false;
+                setSendButtonMode('send');
                 addBotMessage("⚠️ Lỗi kết nối chatbot.");
 
                 // (tuỳ chọn) log fail
@@ -5682,6 +6260,19 @@ function ensureActiveSessionIsTracked() {
             if (!itemBtn) return;
             const sid = decodeURIComponent(itemBtn.getAttribute("data-session-id") || "");
             if (!sid) return;
+
+            // Provide immediate feedback while the selected history loads.
+            try {
+                const key = (typeof getChatCacheKey === "function") ? getChatCacheKey(sid) : null;
+                const cached = key && (typeof readChatCacheByKey === "function") ? readChatCacheByKey(key) : null;
+                const hasCache = !!(cached && Array.isArray(cached.messages) && cached.messages.length);
+                if (!hasCache && typeof showHistoryLoadingPlaceholder === "function") {
+                    showHistoryLoadingPlaceholder();
+                }
+            } catch (_) {
+                try { if (typeof showHistoryLoadingPlaceholder === "function") showHistoryLoadingPlaceholder(); } catch (_) {}
+            }
+
             setBackendSessionId(sid);
             closeSidebarPanel();
             loadChatHistoryFromServer();
@@ -5697,6 +6288,9 @@ function ensureActiveSessionIsTracked() {
         } catch (_) {}
         __chatAbortController = null;
         try { hideTypingIndicator(); } catch (_) {}
+
+        // Dừng TTS (nếu đang phát) khi bắt đầu đoạn chat mới
+        try { stopTTS(); } catch (_) {}
 
 
         // Hủy mọi câu trả lời đang chạy để không bị append vào đoạn chat mới

@@ -186,8 +186,9 @@ body[data-page="chat"] .icon-swap .swap-layer{
 }
 
 body[data-page="chat"] .icon-swap .swap-img{
-    width: 18px;
-    height: 18px;
+    /* Slightly larger brand icon (requested +~5-10%) */
+    width: 19px;
+    height: 19px;
     display: block;
 }
 
@@ -294,6 +295,13 @@ body[data-page="chat"] .rail-btn{
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
     margin: 4px 0;
+}
+
+/* Slightly larger corner/rail icons (+~5-10%) */
+body[data-page="chat"] .rail-btn i,
+body[data-page="chat"] .mobile-topbar-btn i,
+body[data-page="chat"] .unauth-refresh i{
+    font-size: 17px;
 }
 
 body[data-page="chat"] .rail-btn:hover{
@@ -997,14 +1005,15 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     width: 100%;
     flex: 1;
     overflow-y: auto;
-    padding: 80px 24px calc(140px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    /* Reserve space for the floating input pill (no full-width bar) */
+    padding: 80px 24px calc(96px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     transition: all 0.3s ease;
     -webkit-overflow-scrolling: touch;
-    scroll-padding-bottom: calc(160px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(112px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
 .chat-container.has-messages {
@@ -1051,14 +1060,16 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
         right: 0;
         bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
         transform: none;
-        background: #ffffff;
-        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-        border-top: 1px solid #e5e7eb;
+        /* Remove the full-width bar; keep only the input pill */
+        background: transparent;
+        padding: 0 12px calc(16px + env(safe-area-inset-bottom, 0px));
+        border-top: none;
         z-index: 100;
     }
 
     .message-input-container.centered .message-input-wrapper{
         max-width: 100%;
+        width: 100%;
         margin: 0 auto;
     }
 
@@ -1067,7 +1078,10 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
       và "đang chat" (not(.centered)) trên điện thoại.
     */
     .message-input-container:not(.centered){
-        padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+        /* Remove the full-width bar; keep only the input pill */
+        background: transparent;
+        border-top: none;
+        padding: 0 12px calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
     .message-input-container:not(.centered) .message-input-wrapper{
@@ -1101,11 +1115,25 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     left: 0;
     right: 0;
     bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
-    background: #ffffff;
-    padding: 16px 24px calc(16px + env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid #e5e7eb;
+    /* Remove the full-width bar; keep only the input pill */
+    background: transparent;
+    border-top: none;
+    padding: 0 24px calc(16px + env(safe-area-inset-bottom, 0px));
     transition: all 0.35s ease;
     z-index: 100;
+}
+
+/* Auto-hide composer when user scrolls down (requested) */
+body.composer-hidden .message-input-container:not(.centered){
+    transform: translateY(115%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.composer-hidden .chat-container{
+    /* Reduce reserved space at the bottom while composer is hidden */
+    padding-bottom: calc(56px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(72px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
 /* INPUT WRAPPER */
@@ -1201,6 +1229,17 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     overflow-wrap: anywhere;
 }
 
+/* Live typewriter (only for current assistant reply) */
+.message-bubble.streaming .streaming-text{
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.send-button.is-generating{
+    /* keep appearance consistent; class used for logic & optional future styling */
+}
+
 /* Wide bubble for rich content (tables/charts) */
 .bot-message .message-bubble.wide{
     max-width: 100%;
@@ -1242,6 +1281,56 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     justify-content: center;
     box-shadow: none;
 }
+
+/* History loading placeholder (shown immediately when user selects a past chat)
+   - This is NOT the live typing indicator; it's a visual cue while history loads. */
+.loading-message{
+    width: 100%;
+}
+.loading-message .message-bubble{
+    width: min(760px, 100%);
+    margin: 0 auto;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--title);
+}
+.loading-row{ display:flex; align-items:center; gap: 10px; }
+.loading-spinner{
+    width: 16px; height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(15,23,42,0.18);
+    border-top-color: rgba(15,23,42,0.55);
+    animation: loadingSpin 0.8s linear infinite;
+    flex: 0 0 auto;
+}
+body.theme-dark .loading-spinner{
+    border-color: rgba(255,255,255,0.18);
+    border-top-color: rgba(255,255,255,0.55);
+}
+.loading-title{ font-weight: 900; font-size: 13px; color: var(--muted); }
+.skel{ margin-top: 10px; display: grid; gap: 10px; }
+.skel-line{
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(15,23,42,0.08);
+    overflow: hidden;
+    position: relative;
+}
+body.theme-dark .skel-line{ background: rgba(255,255,255,0.10); }
+.skel-line:before{
+    content:"";
+    position:absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+    animation: shimmer 1.05s ease-in-out infinite;
+}
+body.theme-dark .skel-line:before{ background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); }
+
+@keyframes loadingSpin{ to{ transform: rotate(360deg); } }
+@keyframes shimmer{ 100%{ transform: translateX(100%); } }
 
 /* Typography kiểu ChatGPT (markdown) */
 .bot-message .message-bubble p{
@@ -2167,7 +2256,7 @@ body.theme-dark{
 body{ background-color: var(--bg) !important; color: var(--text) !important; }
 .welcome-message h1{ color: var(--title) !important; }
 
-.message-input-container:not(.centered){ background: var(--surface) !important; border-top-color: var(--border) !important; }
+.message-input-container:not(.centered){ background: transparent !important; border-top: none !important; }
 .message-input-wrapper{ background: var(--surface) !important; border-color: var(--border) !important; }
 .input-button{ color: var(--muted) !important; }
 .input-button:hover{ background-color: var(--surface2) !important; color: var(--title) !important; }
@@ -2592,6 +2681,54 @@ body.theme-dark[data-page="chat"] #authBar #registerOpenBtn{
   color: var(--title) !important;
 }
 
+/* Unauthenticated topbar/menu (chat page) */
+body.theme-dark[data-page="chat"] .unauth-brand,
+body.theme-dark[data-page="chat"] .unauth-refresh{
+  color: var(--title) !important;
+}
+body.theme-dark[data-page="chat"] .unauth-menu-link{
+  color: var(--title) !important;
+}
+body.theme-dark[data-page="chat"] .unauth-menu-link:hover{
+  background: rgba(255,255,255,0.06) !important;
+}
+
+/* Mobile topbar (chat page) */
+body.theme-dark[data-page="chat"] .mobile-topbar{
+  background: var(--surface) !important;
+  border-bottom-color: var(--border) !important;
+}
+body.theme-dark[data-page="chat"] .mobile-topbar-btn{
+  color: var(--title) !important;
+}
+body.theme-dark[data-page="chat"] .mobile-topbar-btn:hover{
+  background: var(--surface2) !important;
+}
+body.theme-dark[data-page="chat"] .mobile-topbar-title{
+  color: var(--title) !important;
+}
+
+/* Logged-in header actions (Share / More) */
+body.theme-dark[data-page="chat"] .chat-top-btn{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--title) !important;
+}
+body.theme-dark[data-page="chat"] .chat-top-btn:hover{
+  background: var(--surface2) !important;
+}
+
+/* Sidebar footer account row */
+body.theme-dark[data-page="chat"] .sidebar-panel-footer{
+  border-top-color: var(--border) !important;
+}
+body.theme-dark[data-page="chat"] .sidebar-account-btn:hover{
+  background: rgba(255,255,255,0.06) !important;
+}
+body.theme-dark[data-page="chat"] .sidebar-account-name{ color: var(--title) !important; }
+body.theme-dark[data-page="chat"] .sidebar-account-email{ color: var(--muted) !important; }
+body.theme-dark[data-page="chat"] .sidebar-account-btn i{ color: var(--muted) !important; }
+
 /* Rail */
 body.theme-dark[data-page="chat"] .rail{
   background: var(--surface) !important;
@@ -2746,34 +2883,51 @@ body.theme-dark .data-block-sub{
 }
 
 /* Tables */
-/* Force tables to stay light/white (user request), even when the overall UI is dark. */
-body.theme-dark .data-table{ color: #111827 !important; }
+/* Dark theme: tables should follow the dark palette for readability and consistency. */
+body.theme-dark .data-table{ color: var(--title) !important; }
 
 body.theme-dark .data-table-wrap{
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 16px;
+  /* Improve scrollbars on dark surfaces */
+  scrollbar-color: var(--border) transparent;
+}
+
+body.theme-dark .data-table-wrap::-webkit-scrollbar{ height: 10px; width: 10px; }
+body.theme-dark .data-table-wrap::-webkit-scrollbar-track{ background: transparent; }
+body.theme-dark .data-table-wrap::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+body.theme-dark .data-table-wrap::-webkit-scrollbar-thumb:hover{
+  background: rgba(255,255,255,0.22);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 body.theme-dark .data-table th,
 body.theme-dark .data-table td{
-  border-bottom-color: #e5e7eb !important;
+  border-bottom-color: var(--border) !important;
 }
 
 body.theme-dark .data-table tbody td{
-  background: #ffffff !important;
-  color: #111827 !important;
+  background: var(--surface) !important;
+  color: var(--title) !important;
 }
 
 body.theme-dark .data-table thead th{
-  background: #f9fafb !important;
-  color: #111827 !important;
-  border-bottom-color: #e5e7eb !important;
+  background: var(--surface2) !important;
+  color: var(--title) !important;
+  border-bottom-color: var(--border) !important;
 }
 
-body.theme-dark .data-table tbody tr:nth-child(even) td{ background: #fcfcfd !important; }
-body.theme-dark .data-table tbody tr:hover td{ background: #f3f4f6 !important; }
+body.theme-dark .data-table tbody tr:nth-child(even) td{ background: rgba(255,255,255,0.03) !important; }
+body.theme-dark .data-table tbody tr:hover td{ background: rgba(255,255,255,0.06) !important; }
 
 /* Chips */
+
 body.theme-dark .chip{
   background: rgba(255,255,255,0.04) !important;
   border-color: var(--border) !important;

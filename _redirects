@@ -1,3 +1,6 @@
+/gioi-thieu  /gioi-thieu.html  200
+/ve-chung-toi  /ve-chung-toi.html  200
+/lien-he  /lien-he.html  200
 
 /admin/*  https://chatbot-backend-fly.fly.dev/admin/:splat  200!
 /api/*    https://chatbot-backend-fly.fly.dev/api/:splat    200!
