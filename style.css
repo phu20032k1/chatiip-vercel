@@ -54,7 +54,8 @@ body[data-page="chat"] .main-container{
    ========================= */
 
 :root{
-    --app-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    /* ChatGPT-like system sans stack */
+    --app-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
     /* Slightly narrower left rail */
     --rail-width: 52px;
     /* Narrower (~6%) to better match ChatGPT proportions */
@@ -1273,6 +1274,41 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     border-radius: 8px;
     font-size: 0.95em;
 }
+
+/* Plain HTML tables rendered inside chat messages (e.g., industrial zones answers)
+   Styled to match the active theme (light stays white; dark stays dark). */
+.message-bubble table{
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.message-bubble table th,
+.message-bubble table td{
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    text-align: left;
+    font-family: inherit;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+.message-bubble table thead th{
+    background: var(--surface2);
+    font-weight: 700;
+    color: var(--title);
+}
+
+.message-bubble table tbody tr:nth-child(even) td{ background: var(--surface2); }
+.message-bubble table tbody tr:hover td{ background: var(--surface2); }
+.message-bubble table tr:last-child th,
+.message-bubble table tr:last-child td{ border-bottom: 0; }
 
 /* Pretty-print JSON fallback (when server accidentally returns an object) */
 .json-block{
@@ -2710,27 +2746,32 @@ body.theme-dark .data-block-sub{
 }
 
 /* Tables */
-body.theme-dark .data-table{ color: var(--title); }
+/* Force tables to stay light/white (user request), even when the overall UI is dark. */
+body.theme-dark .data-table{ color: #111827 !important; }
+
+body.theme-dark .data-table-wrap{
+  background: #ffffff;
+  border-radius: 16px;
+}
 
 body.theme-dark .data-table th,
 body.theme-dark .data-table td{
-  border-bottom-color: var(--border) !important;
+  border-bottom-color: #e5e7eb !important;
 }
 
-/* Ensure body rows are readable on dark theme (avoid inheriting light card backgrounds) */
 body.theme-dark .data-table tbody td{
-  background: rgba(255,255,255,0.02);
-  color: var(--text) !important;
+  background: #ffffff !important;
+  color: #111827 !important;
 }
 
 body.theme-dark .data-table thead th{
-  background: rgba(17,24,39,0.96) !important;
-  color: var(--title) !important;
-  border-bottom-color: var(--border) !important;
+  background: #f9fafb !important;
+  color: #111827 !important;
+  border-bottom-color: #e5e7eb !important;
 }
 
-body.theme-dark .data-table tbody tr:nth-child(even) td{ background: rgba(255,255,255,0.03) !important; }
-body.theme-dark .data-table tbody tr:hover td{ background: rgba(255,255,255,0.06) !important; }
+body.theme-dark .data-table tbody tr:nth-child(even) td{ background: #fcfcfd !important; }
+body.theme-dark .data-table tbody tr:hover td{ background: #f3f4f6 !important; }
 
 /* Chips */
 body.theme-dark .chip{

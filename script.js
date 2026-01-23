@@ -89,8 +89,8 @@ function clearBackendSessionId() {
 // Mục tiêu:
 // 1) Reload trang là thấy lịch sử ngay (từ localStorage) rồi mới đồng bộ server.
 // 2) Giữ được các nội dung có cấu trúc (flowchart/map/chart) để render lại đúng.
-const CHAT_CACHE_PREFIX = "chatiip_chat_cache_v3:"; // bump version nếu đổi format
-const CHAT_CACHE_PENDING_KEY = "chatiip_chat_cache_pending_v3";
+const CHAT_CACHE_PREFIX = "chatiip_chat_cache_v4:"; // bump version nếu đổi format
+const CHAT_CACHE_PENDING_KEY = "chatiip_chat_cache_pending_v4";
 const CHAT_CACHE_MAX_MESSAGES = 200;
 
 function getChatCacheKey(sessionId) {
@@ -4769,7 +4769,7 @@ logToGoogle({
 
                 // Ensure guest does not rehydrate old chat on reload
                 try { clearBackendSessionId(); } catch (_) {}
-                try { localStorage.removeItem("chatiip_chat_cache_pending_v3"); } catch (_) {}
+                try { localStorage.removeItem("chatiip_chat_cache_pending_v4"); } catch (_) {}
             } else {
                 document.body.classList.remove("unauth-mode");
                 document.documentElement.classList.remove("unauth-mode");
