@@ -48,12 +48,23 @@
   <meta id="metaDesc" name="description" content="Danh sách bài viết theo chuyên mục">
   <meta id="metaKeywords" name="keywords" content="">
   <link id="canonicalLink" rel="canonical" href="">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+  <meta name="theme-color" content="#0b1220">
 
   <!-- OG TAGS -->
+  <meta property="og:site_name" content="ChatIIP">
+  <meta property="og:type" content="website">
   <meta property="og:title" id="ogTitle" content="">
   <meta property="og:description" id="ogDescription" content="">
-  <meta property="og:image" id="ogImage" content="https://chatiip.com/default-og.jpg">
+  <meta property="og:image" id="ogImage" content="https://chatiip.com/iip.jpg">
   <meta property="og:url" id="ogUrl" content="">
+
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" id="twitterTitle" content="">
+  <meta name="twitter:description" id="twitterDescription" content="">
+  <meta name="twitter:image" id="twitterImage" content="https://chatiip.com/iip.jpg">
 
   <!-- JSON-LD -->
   <script type="application/ld+json" id="jsonLD"></script>
@@ -110,7 +121,12 @@ function updateSEO() {
   document.getElementById("canonicalLink").setAttribute("href", url);
   document.getElementById("ogTitle").setAttribute("content", title);
   document.getElementById("ogDescription").setAttribute("content", desc);
+  document.getElementById("ogImage")?.setAttribute("content", "https://chatiip.com/iip.jpg");
   document.getElementById("ogUrl").setAttribute("content", url);
+
+  document.getElementById("twitterTitle")?.setAttribute("content", title);
+  document.getElementById("twitterDescription")?.setAttribute("content", desc);
+  document.getElementById("twitterImage")?.setAttribute("content", "https://chatiip.com/iip.jpg");
 
   document.getElementById("jsonLD").textContent = JSON.stringify({
     "@context":"https://schema.org",

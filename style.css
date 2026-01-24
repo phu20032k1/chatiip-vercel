@@ -3676,3 +3676,40 @@ body[data-page="chat"] .unauth-menu-link:hover{
         }
     }
     
+
+/* =========================
+   SEO footer (crawlable links)
+   ========================= */
+.seo-footer{
+  border-top:1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 18px 14px;
+}
+.seo-footer-inner{
+  max-width: 1040px;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+}
+.seo-footer p{
+  margin:0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.seo-footer-links{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.seo-footer-links a{
+  font-size: 13px;
+  color: var(--title);
+  text-decoration: none;
+  border-bottom: 1px dashed transparent;
+}
+.seo-footer-links a:hover{
+  border-bottom-color: var(--title);
+}
+

@@ -50,7 +50,7 @@ function updateSEO(item) {
         || item.subtitle
         || plain.slice(0, 160);
     const keywords = item.pageKeywords || "";
-    const img = item.ogImage || item.img || "https://chatiip.com/default-og.jpg";
+    const img = item.ogImage || item.img || "https://chatiip.com/iip.jpg";
     const url = item.canonical || `https://chatiip.com/article.html?slug=${item.slug}`;
     const h1 = item.pageHeading || item.title;
 
@@ -124,7 +124,7 @@ async function loadArticle() {
             : "Không rõ ngày";
 
         // Ảnh
-        imgEl.src = item.img || "https://chatiip.com/default-og.jpg";
+        imgEl.src = item.img || "https://chatiip.com/iip.jpg";
         imgEl.style.display = "block";
 
         // Nội dung

@@ -154,7 +154,7 @@ function shortText(text, max = 120) {
    Render bài nổi bật
    ========================== */
 function renderFeaturedItem(n) {
-  const img = n.img && n.img.trim() !== "" ? n.img : "https://chatiip.com/default-og.jpg";
+  const img = n.img && n.img.trim() !== "" ? n.img : "https://chatiip.com/iip.jpg";
   const date = n.publishedAt
     ? new Date(n.publishedAt).toLocaleDateString("vi-VN")
     : "Không rõ ngày";
@@ -192,7 +192,7 @@ function renderNewsItem(n) {
 
   const img = n.img && n.img.trim() !== ""
     ? n.img
-    : "https://chatiip.com/default-og.jpg";
+    : "https://chatiip.com/iip.jpg";
 
   const date = n.publishedAt
     ? new Date(n.publishedAt).toLocaleDateString("vi-VN")

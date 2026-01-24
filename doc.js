@@ -93,30 +93,57 @@ function wireTabs() {
 function updateSEO(doc) {
   const title = doc?.title ? String(doc.title) : "Văn bản pháp luật";
   const desc = doc?.trichYeu
-    ? String(doc.trichYeu).slice(0, 160)
+    ? String(doc.trichYeu).replace(/\s+/g, " ").trim().slice(0, 160)
     : "Chi tiết văn bản pháp luật: tóm tắt, nội dung, lược đồ, tải về.";
 
-  document.title = `${title} | ChatIIP`;
+  const pageTitle = `${title} | ChatIIP`;
+  const url = window.location.href;
 
-  document.getElementById("ogTitle")?.setAttribute("content", title);
+  document.title = pageTitle;
+
+  // Meta description
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute("content", desc);
+
+  // Canonical
+  let canonicalTag = document.querySelector('link[rel="canonical"]');
+  if (!canonicalTag) {
+    canonicalTag = document.createElement("link");
+    canonicalTag.rel = "canonical";
+    document.head.appendChild(canonicalTag);
+  }
+  canonicalTag.href = url;
+
+  // OpenGraph
+  document.getElementById("ogTitle")?.setAttribute("content", pageTitle);
   document.getElementById("ogDescription")?.setAttribute("content", desc);
-  document.getElementById("ogUrl")?.setAttribute("content", window.location.href);
+  document.getElementById("ogUrl")?.setAttribute("content", url);
+
+  // Twitter
+  document.getElementById("twitterTitle")?.setAttribute("content", pageTitle);
+  document.getElementById("twitterDescription")?.setAttribute("content", desc);
+  document.getElementById("twitterImage")?.setAttribute("content", "https://chatiip.com/iip.jpg");
 
   // JSON-LD
   try {
     const jsonLdEl = document.getElementById("docJsonLd");
     if (jsonLdEl) {
-      jsonLdEl.textContent = JSON.stringify(
-        {
-          "@context": "https://schema.org",
-          "@type": "CreativeWork",
-          "name": title,
-          "description": desc,
-          "url": window.location.href
-        },
-        null,
-        2
-      );
+      const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "name": title,
+        "headline": title,
+        "description": desc,
+        "url": url
+      };
+
+      // Optional enrichments when available
+      if (doc?.ngayBanHanh) jsonLd.datePublished = doc.ngayBanHanh;
+      if (doc?.ngayHieuLuc) jsonLd.dateModified = doc.ngayHieuLuc;
+      if (doc?.coQuanBanHanh) jsonLd.publisher = { "@type": "Organization", "name": String(doc.coQuanBanHanh) };
+      if (doc?.soHieu) jsonLd.identifier = String(doc.soHieu);
+
+      jsonLdEl.textContent = JSON.stringify(jsonLd, null, 2);
     }
   } catch {
     // ignore
