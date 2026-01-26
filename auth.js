@@ -1,9 +1,3 @@
-/*
-  Auth UI (frontend-only demo)
-  - Login/Register modal (email/password)
-  - Persist auth + settings in localStorage
-  - After login: hide Login/Register bar on pages that have hamburger sidebar; show account in hamburger.
-*/
 
 (function () {
   const STORAGE_CURRENT = "chatiip_current_user";
@@ -11,17 +5,14 @@
   const STORAGE_THEME = "chatiip_theme"; // 'light' | 'dark'
   const STORAGE_SETTINGS = "chatiip_settings"; // { notifications: boolean }
 
-  // Google Sign-In (Frontend)
-  // 1) Tạo Google OAuth Client ID (Web) và thêm origin/redirect theo domain của bạn.
-  // 2) Dán Client ID vào đây.
-  // Lưu ý: Client ID là public, không phải secret.
-  // Google OAuth Client ID (Web)
-  // Provided by you:
-  // 847619063389-bndr6dll057jm4891cruu2as51r5mtob.apps.googleusercontent.com
+
   const GOOGLE_CLIENT_ID = "847619063389-bndr6dll057jm4891cruu2as51r5mtob.apps.googleusercontent.com";
 
   let pendingRegisterEmail = null;
   let forgotOtpSent = false;
+
+  // Track which auth tab is active so we can tailor messaging for Google button
+  let currentAuthTab = "login"; // 'login' | 'register'
 
 
     // Backend API
@@ -81,13 +72,19 @@
     return googleGsiLoadingPromise;
   }
 
-  async function renderGoogleButton() {
-    const container = document.getElementById("googleSignInContainer");
-    if (!container) return;
+  // Render Google buttons in both Login and Register panels (if containers exist)
+  async function renderGoogleButtons() {
+    const signInContainer = document.getElementById("googleSignInContainer");
+    const signUpContainer = document.getElementById("googleSignUpContainer");
+
+    // Nothing to render
+    if (!signInContainer && !signUpContainer) return;
 
     // Nếu chưa cấu hình client id thì hiển thị gợi ý (tránh treo UI)
     if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")) {
-      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">Chưa cấu hình Google Client ID. Mở <b>frontend/auth.js</b> và thay biến <b>GOOGLE_CLIENT_ID</b>.</div>`;
+      const msg = `<div class="auth-hint" style="margin-top:8px;">Chưa cấu hình Google Client ID. Mở <b>frontend/auth.js</b> và thay biến <b>GOOGLE_CLIENT_ID</b>.</div>`;
+      if (signInContainer) signInContainer.innerHTML = msg;
+      if (signUpContainer) signUpContainer.innerHTML = msg;
       return;
     }
 
@@ -103,47 +100,71 @@
     try {
       await loadGoogleGsiScript();
     } catch (e) {
-      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">${escapeHtmlLocal(String(e.message || e))}</div>`;
+      const msg = `<div class="auth-hint" style="margin-top:8px;">${escapeHtmlLocal(String(e.message || e))}</div>`;
+      if (signInContainer) signInContainer.innerHTML = msg;
+      if (signUpContainer) signUpContainer.innerHTML = msg;
       return;
     }
 
     if (!(window.google && google.accounts && google.accounts.id)) {
-      container.innerHTML = `<div class="auth-hint" style="margin-top:8px;">Google Sign-In chưa sẵn sàng. Hãy thử tải lại trang.</div>`;
+      const msg = `<div class="auth-hint" style="margin-top:8px;">Google Sign-In chưa sẵn sàng. Hãy thử tải lại trang.</div>`;
+      if (signInContainer) signInContainer.innerHTML = msg;
+      if (signUpContainer) signUpContainer.innerHTML = msg;
       return;
     }
 
     // Reset render
-    container.innerHTML = "";
+    if (signInContainer) signInContainer.innerHTML = "";
+    if (signUpContainer) signUpContainer.innerHTML = "";
 
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      ux_mode: "popup",
-      callback: async (resp) => {
-        try {
-          const data = await api("/auth/google", {
-            method: "POST",
-            body: { credential: resp.credential }
-          });
-          const user = data.user;
-          setCurrentUser(user);
-          closeOverlay("authOverlay");
-          syncAllUI();
-          showToast("Đăng nhập Google thành công!", "success");
-        } catch (err) {
-          showToast(err.message || "Đăng nhập Google thất bại.", "error");
+    // Initialize only once (Google Identity Services will throw/override if re-initialized repeatedly)
+    if (!renderGoogleButtons._gsiInitialized) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        ux_mode: "popup",
+        callback: async (resp) => {
+          try {
+            const data = await api("/auth/google", {
+              method: "POST",
+              body: { credential: resp.credential }
+            });
+            const user = data.user;
+            setCurrentUser(user);
+            closeOverlay("authOverlay");
+            syncAllUI();
+            const msg = currentAuthTab === "register"
+              ? "Đăng ký/Đăng nhập bằng Google thành công!"
+              : "Đăng nhập Google thành công!";
+            showToast(msg, "success");
+          } catch (err) {
+            showToast(err.message || "Google Sign-In thất bại.", "error");
+          }
         }
-      }
-    });
+      });
+      renderGoogleButtons._gsiInitialized = true;
+    }
 
-    // Render default Google button
-    google.accounts.id.renderButton(container, {
-      type: "standard",
-      theme: "outline",
-      size: "large",
-      text: "signin_with",
-      shape: "pill",
-      width: 320
-    });
+    // Render buttons
+    if (signInContainer) {
+      google.accounts.id.renderButton(signInContainer, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        shape: "pill",
+        width: 320
+      });
+    }
+    if (signUpContainer) {
+      google.accounts.id.renderButton(signUpContainer, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        text: "signup_with",
+        shape: "pill",
+        width: 320
+      });
+    }
   }
 
 
@@ -532,13 +553,13 @@ function injectAuthUI() {
           <div class="auth-panel hidden" id="panelRegister">
             <form id="registerForm" class="auth-form">
               <label class="auth-label">Họ & tên</label>
-              <input class="auth-input" id="regName" type="text" placeholder="VD: Khô Gà,Bã Mía,Mẹ Lý" required />
+              <input class="auth-input" id="regName" type="text" placeholder="VD: Đoàn Duy Hưng,Hưng Đẹp Trai,vv..." required />
 
               <label class="auth-label">Email</label>
               <input class="auth-input" id="regEmail" type="email" placeholder="vd: ten@email.com" required />
 
               <label class="auth-label">Số điện thoại</label>
-              <input class="auth-input" id="regPhone" type="tel" placeholder="vd: 0912 345 678" />
+              <input class="auth-input" id="regPhone" type="tel" placeholder="vd: 0936 3636 363" />
 
               <label class="auth-label">Mật khẩu</label>
               <input class="auth-input" id="regPassword" type="password" placeholder="Tối thiểu 6 ký tự" minlength="6" required />
@@ -547,6 +568,14 @@ function injectAuthUI() {
               <input class="auth-input" id="regPassword2" type="password" placeholder="Nhập lại mật khẩu" minlength="6" required />
 
               <button class="auth-submit" type="submit">Tạo tài khoản</button>
+
+              <div style="display:flex; align-items:center; gap:10px; margin:14px 0 8px 0; opacity:.85;">
+                <div style="height:1px; flex:1; background:rgba(148,163,184,.6);"></div>
+                <span style="font-size:12px;">hoặc</span>
+                <div style="height:1px; flex:1; background:rgba(148,163,184,.6);"></div>
+              </div>
+              <div id="googleSignUpContainer" style="display:flex; justify-content:center; margin:10px 0 6px 0;"></div>
+
               <div class="auth-hint">Đã có tài khoản? <button class="link-btn" id="gotoLogin" type="button">Đăng nhập</button></div>
             </form>
           </div>
@@ -723,7 +752,7 @@ function injectAuthUI() {
     // Nếu mở auth overlay thì render Google Sign-In button (nếu có)
     if (id === "authOverlay") {
       setTimeout(() => {
-        try { renderGoogleButton(); } catch (_) {}
+        try { renderGoogleButtons(); } catch (_) {}
       }, 0);
     }
   }
@@ -746,16 +775,16 @@ function injectAuthUI() {
     if (!loginTab || !regTab || !loginPanel || !regPanel) return;
 
     const isLogin = tab === "login";
+    currentAuthTab = isLogin ? "login" : "register";
     loginTab.classList.toggle("active", isLogin);
     regTab.classList.toggle("active", !isLogin);
     loginPanel.classList.toggle("hidden", !isLogin);
     regPanel.classList.toggle("hidden", isLogin);
 
-    if (isLogin) {
-      setTimeout(() => {
-        try { renderGoogleButton(); } catch (_) {}
-      }, 0);
-    }
+    // Render Google buttons whenever switching tabs to ensure both containers are up-to-date
+    setTimeout(() => {
+      try { renderGoogleButtons(); } catch (_) {}
+    }, 0);
   }
 
   // --------------- Account UI sync ----------------

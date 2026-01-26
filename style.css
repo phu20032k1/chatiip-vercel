@@ -1005,15 +1005,15 @@ button, a, .input-button, .send-button, .action-btn, .hamburger-btn, .news-btn, 
     width: 100%;
     flex: 1;
     overflow-y: auto;
-    /* Reserve space for the floating input pill (no full-width bar) */
-    padding: 80px 24px calc(96px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    /* Reserve enough space for the floating input pill + overlays (e.g., long compare tables) */
+    padding: 80px 24px calc(152px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     transition: all 0.3s ease;
     -webkit-overflow-scrolling: touch;
-    scroll-padding-bottom: calc(112px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(168px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
 }
 
 .chat-container.has-messages {
@@ -1132,8 +1132,51 @@ body.composer-hidden .message-input-container:not(.centered){
 
 body.composer-hidden .chat-container{
     /* Reduce reserved space at the bottom while composer is hidden */
-    padding-bottom: calc(56px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
-    scroll-padding-bottom: calc(72px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(84px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(100px + var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px));
+}
+
+/* =========================
+   Scroll-to-bottom button
+   - Desktop: centered
+   - Mobile: bottom-left
+   ========================= */
+.scroll-to-bottom{
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px) + 92px);
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 120;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.scroll-to-bottom i{ font-size: 16px; color: #111827; }
+
+.scroll-to-bottom.show{
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.scroll-to-bottom:hover{ background: #f9fafb; }
+
+@media (max-width: 768px){
+    .scroll-to-bottom{
+        left: 16px;
+        transform: none;
+        bottom: calc(var(--keyboard-offset, 0px) + env(safe-area-inset-bottom, 0px) + 92px);
+    }
 }
 
 /* INPUT WRAPPER */
@@ -2346,10 +2389,19 @@ body[data-page="chat"] #authBar #registerOpenBtn{
   inset: 0;
   background: rgba(0,0,0,0.45);
   display: none;
-  align-items: center;
+  /* Allow scroll when modal content is taller than viewport (desktop & mobile) */
+  align-items: flex-start;
   justify-content: center;
-  padding: 18px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
   z-index: 1000;
+}
+
+/* If the viewport is tall enough, keep the auth modal vertically centered */
+@media (min-height: 760px){
+  .auth-overlay{ align-items: center; }
 }
 
 .auth-overlay.show{ display: flex; }
@@ -2363,6 +2415,10 @@ body[data-page="chat"] #authBar #registerOpenBtn{
   box-shadow: 0 20px 70px rgba(0,0,0,0.25);
   padding: 18px;
   position: relative;
+  /* Prevent top section (tabs) from being clipped on smaller screens */
+  max-height: calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .auth-close{
@@ -3319,7 +3375,12 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
 
 /* Compare mode: bảng (2 tỉnh) bên trái, bản đồ bên phải */
 .iip-side-by-side.iip-compare{
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  /*
+    Desktop ratio request: 55% (bảng/danh sách) : 45% (bản đồ)
+    - Trước đây ~62.5% : 37.5% (1.25fr : 0.75fr) => map bị hẹp.
+    - 11fr : 9fr tương ứng 55/45, giúp map rộng thêm ~7.5% so với 60/40.
+  */
+  grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
 }
 
 /* Compare mode: giữ bảng gọn, cuộn trong mỗi bảng */

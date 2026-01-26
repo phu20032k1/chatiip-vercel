@@ -3,7 +3,6 @@
 function getSessionId() {
     let sid = localStorage.getItem("chatiip_session_id");
     if (!sid) {
-        // ✅ FIX: tránh lỗi ReferenceError nếu trình duyệt không có window.crypto
         sid = (window.crypto && crypto.randomUUID)
             ? crypto.randomUUID()
             : Date.now() + "_" + Math.random();
@@ -2235,6 +2234,47 @@ function scrollToBottom(behavior = "smooth", force = false) {
     });
 }
 
+// =========================
+// ⭐ Scroll-to-bottom button (manual jump)
+// =========================
+const scrollToBottomBtn = document.getElementById("scrollToBottomBtn");
+
+function __updateScrollToBottomBtn() {
+    try {
+        if (!scrollToBottomBtn || !chatContainer) return;
+
+        // Không hiện nút khi chưa có nội dung để cuộn
+        const canScroll = (chatContainer.scrollHeight || 0) > (chatContainer.clientHeight || 0) + 10;
+        if (!canScroll) {
+            scrollToBottomBtn.classList.remove("show");
+            return;
+        }
+
+        const dist = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+
+        // Chỉ hiện khi user ở xa đáy một khoảng đủ lớn
+        if (dist > 220) {
+            scrollToBottomBtn.classList.add("show");
+        } else {
+            scrollToBottomBtn.classList.remove("show");
+        }
+    } catch (_) {}
+}
+
+try {
+    if (scrollToBottomBtn && chatContainer) {
+        scrollToBottomBtn.addEventListener("click", () => {
+            scrollToBottom("smooth", true);
+            // update sớm để tránh bị giữ trạng thái "show" trong lúc đang animation
+            setTimeout(__updateScrollToBottomBtn, 50);
+        });
+
+        chatContainer.addEventListener("scroll", __updateScrollToBottomBtn, { passive: true });
+        window.addEventListener("resize", __updateScrollToBottomBtn);
+        setTimeout(__updateScrollToBottomBtn, 300);
+    }
+} catch (_) {}
+
 
 // =========================
 // ⭐ RICH_SCROLL_GUARDS: chặn cuộn lan (scroll chaining) + tạm dừng auto-scroll khi tương tác bảng/bản đồ
@@ -3303,6 +3343,27 @@ function sendMessage() {
     function runTypewriter(bubbleEl, finalText, finalHtml, onDone) {
         if (!bubbleEl) return null;
 
+        // Preserve dynamic DOM that may be appended while streaming (e.g., compare tables for IIP)
+        // because swapping `innerHTML` to finalHtml would otherwise wipe those nodes.
+        const __swapHtmlPreserve = (html) => {
+            const preserved = [];
+            try {
+                bubbleEl.querySelectorAll('.compare-iip-lists').forEach(n => preserved.push(n));
+            } catch (_) {}
+
+            // Detach preserved nodes before innerHTML replacement
+            preserved.forEach(n => {
+                try { n.remove(); } catch (_) {}
+            });
+
+            bubbleEl.innerHTML = html;
+
+            // Re-attach preserved nodes after swap
+            preserved.forEach(n => {
+                try { bubbleEl.appendChild(n); } catch (_) {}
+            });
+        };
+
         // Use plain text streaming first, then swap to formatted HTML at the end.
         bubbleEl.classList.add('streaming');
         bubbleEl.innerHTML = `<div class="streaming-text"></div>`;
@@ -3328,7 +3389,7 @@ function sendMessage() {
             if (i >= text.length) {
                 bubbleEl.classList.remove('streaming');
                 // swap to full formatted HTML
-                bubbleEl.innerHTML = finalHtml;
+                __swapHtmlPreserve(finalHtml);
                 if (typeof onDone === 'function') onDone();
                 return;
             }
@@ -3348,7 +3409,7 @@ function sendMessage() {
                     const n = bubbleEl.querySelector('.streaming-text');
                     if (n) n.textContent = text.slice(0, i);
                 } else {
-                    bubbleEl.innerHTML = finalHtml;
+                    __swapHtmlPreserve(finalHtml);
                 }
                 if (typeof onDone === 'function') onDone(true);
             }
@@ -3534,8 +3595,8 @@ try {
             <div class="bot-stack">
                 <div class="message-bubble bot-bubble">${normalized.html}</div>
                 <div class="message-actions">
-                    ${renderActionButton('like', 'fa-regular fa-thumbs-up', 'Đồng ý')}
-                    ${renderActionButton('dislike', 'fa-regular fa-thumbs-down', 'Không đồng ý')}
+                    ${renderActionButton('like', 'fa-regular fa-thumbs-up', 'Phản hồi tốt')}
+                    ${renderActionButton('dislike', 'fa-regular fa-thumbs-down', 'Phản hồi không tốt')}
                     ${renderActionButton('tts', 'fa-solid fa-volume-high', 'Đọc')}
                     ${renderActionButton('refresh', 'fa-solid fa-arrows-rotate', 'Trả lời lại')}
                     ${renderActionButton('copy', 'fa-regular fa-copy', 'Sao chép')}

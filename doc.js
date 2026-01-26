@@ -1,9 +1,4 @@
-// ==============================
-// DOC.JS – Public chi tiết văn bản
-// - Load theo slug
-// - Tabs: Tóm tắt / Nội dung / Lược đồ / Tải về
-// - Sidebar mục lục (outline tree) click để nhảy
-// ==============================
+
 
 const API_DOCS = "/api/docs";
 

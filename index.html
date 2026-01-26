@@ -9,50 +9,45 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <script>
-(function () {
-  const STORAGE_KEY = "chatiip_app_version";
-  const FALLBACK_VERSION = "20260124034628";
-  const u = new URL(window.location.href);
-  let v = u.searchParams.get("v") || "";
-  if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) {} }
-  if (!v) v = FALLBACK_VERSION;
-  window.CHATIIP_VERSION = v;
+        (function () {
+            const STORAGE_KEY = "chatiip_app_version";
+            const FALLBACK_VERSION = "20260127011029";
+            const u = new URL(window.location.href);
+            let v = u.searchParams.get("v") || "";
+            if (!v) { try { v = localStorage.getItem(STORAGE_KEY) || ""; } catch (e) { } }
+            if (!v) v = FALLBACK_VERSION;
+            window.CHATIIP_VERSION = v;
 
-  window.__CHATIIP_ASSET = function (path) {
-    try {
-      if (!path) return path;
-      if (/^https?:\/\//i.test(path)) return path;
-      return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
-    } catch (e) {
-      return path;
-    }
-  };
+            window.__CHATIIP_ASSET = function (path) {
+                try {
+                    if (!path) return path;
+                    if (/^https?:\/\//i.test(path)) return path;
+                    return path.split("?")[0] + "?v=" + encodeURIComponent(window.CHATIIP_VERSION || "");
+                } catch (e) {
+                    return path;
+                }
+            };
 
-  fetch("app-version.json", { cache: "no-store" })
-    .then(r => r.ok ? r.json() : null)
-    .then(j => {
-      const latest = (j && j.version) ? String(j.version) : "";
-      if (!latest) return;
-      try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) {}
-      const url = new URL(window.location.href);
-      if (url.searchParams.get("v") !== latest) {
-        url.searchParams.set("v", latest);
-        window.location.replace(url.toString());
-      }
-    })
-    .catch(() => {});
-})();
-</script>
-    <meta name="keywords" content="trợ lý AI, bất động sản công nghiệp, khu công nghiệp, cụm công nghiệp, pháp luật đầu tư, ưu đãi thuế, quy hoạch KCN, tư vấn đầu tư, IIP Vietnam, ChatIIP">
-
-
-    <title>ChatIIP – Trợ lý AI bất động sản công nghiệp, pháp lý & ưu đãi đầu tư</title>
-
-    <!-- FAVICON -->
-
-    <!-- iOS (iPhone, iPad) -->
+            fetch("app-version.json", { cache: "no-store" })
+                .then(r => r.ok ? r.json() : null)
+                .then(j => {
+                    const latest = (j && j.version) ? String(j.version) : "";
+                    if (!latest) return;
+                    try { localStorage.setItem(STORAGE_KEY, latest); } catch (e) { }
+                    const url = new URL(window.location.href);
+                    if (url.searchParams.get("v") !== latest) {
+                        url.searchParams.set("v", latest);
+                        window.location.replace(url.toString());
+                    }
+                })
+                .catch(() => { });
+        })();
+    </script>
+    <meta name="keywords"
+        content="trợ lý AI, bất động sản công nghiệp, khu công nghiệp, cụm công nghiệp, pháp luật đầu tư, ưu đãi thuế, quy hoạch KCN, tư vấn đầu tư, IIP Vietnam, ChatIIP">
 
 
+    <title>ChatIIP</title>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <!-- Mapbox GL -->
@@ -60,7 +55,7 @@
 
     <script>document.write('<link rel=\"stylesheet\" href=\"' + window.__CHATIIP_ASSET('style.css') + '\">');</script>
 
-    <!-- Prevent UI flash: set unauth-mode early (before DOMContentLoaded) -->
+
     <script>
         (function () {
             try {
@@ -89,8 +84,9 @@
     <meta property="article:section" content="Tin tức">
 
     <!-- BASE SEO -->
-    <meta name="description" content="ChatIIP là trợ lý AI chuyên sâu về khu/cụm công nghiệp, pháp luật, quy hoạch, thuế–ưu đãi và tư vấn đầu tư công nghiệp tại Việt Nam.">
-<meta name="author" content="ChatIIP">
+    <meta name="description"
+        content="ChatIIP là trợ lý AI chuyên sâu về khu/cụm công nghiệp, pháp luật, quy hoạch, thuế–ưu đãi và tư vấn đầu tư công nghiệp tại Việt Nam.">
+    <meta name="author" content="ChatIIP">
 
     <!-- GEO TAGS -->
     <meta name="geo.region" content="VN-HN">
@@ -146,14 +142,14 @@
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9DLYZL4633"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){ dataLayer.push(arguments); }
-      gtag('js', new Date());
-      // Track 2 GA4 properties
-      gtag('config', 'G-9DLYZL4633');
-      gtag('config', 'G-R5YNLSJQMZ');
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        // Track 2 GA4 properties
+        gtag('config', 'G-9DLYZL4633');
+        gtag('config', 'G-R5YNLSJQMZ');
     </script>
-<!-- FAVICON (applies site-wide) -->
+    <!-- FAVICON (applies site-wide) -->
     <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260123120000" />
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260123120000" />
     <link rel="apple-touch-icon" href="favicon.ico?v=20260123120000" />
@@ -162,16 +158,15 @@
 
 <body data-page="chat">
 
-    <!-- Unauthenticated: topbar like ChatGPT (no sidebar / no history) -->
+
     <div class="unauth-topbar" id="unauthTopbar" aria-label="Thanh trên (chưa đăng nhập)">
-        <!-- Làm mới/đoạn chat mới đứng trước (giống ảnh yêu cầu) -->
-        <button class="unauth-refresh icon-swap" id="unauthRefreshBtn" type="button" title="Đoạn chat mới" aria-label="Đoạn chat mới">
+        <button class="unauth-refresh icon-swap" id="unauthRefreshBtn" type="button" title="Đoạn chat mới"
+            aria-label="Đoạn chat mới">
             <span class="swap-layer swap-default" aria-hidden="true">
                 <img class="swap-img" src="iip-typing.png" alt="" />
             </span>
             <span class="swap-layer swap-hover" aria-hidden="true">
-	                <!-- Giữ đúng icon gốc cho "Đoạn chat mới" (bút) -->
-	                <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+                <i class="fas fa-pen-to-square" aria-hidden="true"></i>
             </span>
         </button>
 
@@ -179,16 +174,16 @@
             <span class="unauth-brand-text">ChatIIP</span>
         </button>
 
-<!-- ====== MENU GIỮA MÀN HÌNH (desktop, chưa đăng nhập, chưa gửi tin) ====== -->
-<nav class="unauth-menu" aria-label="Menu thông tin">
-    <a href="gioi-thieu.html" class="unauth-menu-link">Giới thiệu</a>
-    <a href="ve-chung-toi.html" class="unauth-menu-link">Về chúng tôi</a>
-    <a href="lien-he.html" class="unauth-menu-link">Liên hệ</a>
-</nav>
+        <!-- MENU GIỮA MÀN HÌNH -->
+        <nav class="unauth-menu" aria-label="Menu thông tin">
+            <a href="gioi-thieu.html" class="unauth-menu-link">Giới thiệu</a>
+            <a href="ve-chung-toi.html" class="unauth-menu-link">Về chúng tôi</a>
+            <a href="lien-he.html" class="unauth-menu-link">Liên hệ</a>
+        </nav>
 
     </div>
 
-    <!-- Logged-in: top-right actions (desktop) -->
+
     <div class="chat-top-actions" id="chatTopActions" aria-label="Chia sẻ và tùy chọn đoạn chat">
         <button class="chat-top-btn" id="chatShareBtn" type="button" aria-label="Chia sẻ" title="Chia sẻ">
             <i class="fas fa-arrow-up-from-bracket" aria-hidden="true"></i>
@@ -200,9 +195,10 @@
 
     <div class="app-shell">
 
-        <!-- LEFT RAIL (ChatGPT-style) -->
+
         <nav class="rail" id="rail" aria-label="Thanh công cụ">
-            <button class="rail-btn icon-swap" id="toggleSidebarBtn" type="button" title="Mở thanh bên" aria-label="Mở thanh bên">
+            <button class="rail-btn icon-swap" id="toggleSidebarBtn" type="button" title="Mở thanh bên"
+                aria-label="Mở thanh bên">
                 <span class="swap-layer swap-default" aria-hidden="true">
                     <img class="swap-img" src="iip-typing.png" alt="" />
                 </span>
@@ -223,7 +219,8 @@
                 <i class="fas fa-newspaper"></i>
             </button>
 
-            <button class="rail-btn" id="lawsRailBtn" type="button" title="Văn bản pháp luật" aria-label="Văn bản pháp luật">
+            <button class="rail-btn" id="lawsRailBtn" type="button" title="Văn bản pháp luật"
+                aria-label="Văn bản pháp luật">
                 <i class="fas fa-scale-balanced"></i>
             </button>
 
@@ -234,14 +231,15 @@
             </button>
         </nav>
 
-        <!-- SIDEBAR PANEL (toggle by rail button) -->
+        <!-- SIDEBAR PANEL  -->
         <aside class="sidebar-panel" id="sidebarPanel" aria-hidden="true">
             <div class="sidebar-panel-header">
                 <div class="brand">
                     <div class="brand-title">ChatIIP</div>
                     <div class="brand-subtitle">Trợ lý AI</div>
                 </div>
-                <button class="sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Đóng thanh bên" title="Đóng">
+                <button class="sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Đóng thanh bên"
+                    title="Đóng">
                     <i class="fas fa-xmark"></i>
                 </button>
             </div>
@@ -260,28 +258,29 @@
 
             <div class="sidebar-panel-body">
 
-            <div class="sidebar-section sidebar-section-history">
-                <div class="sidebar-section-title">Lịch sử</div>
-                <div class="sidebar-history" id="chatHistoryList">
-                    <div class="sidebar-empty" id="historyEmpty">Đăng nhập để xem lịch sử chat.</div>
+                <div class="sidebar-section sidebar-section-history">
+                    <div class="sidebar-section-title">Lịch sử</div>
+                    <div class="sidebar-history" id="chatHistoryList">
+                        <div class="sidebar-empty" id="historyEmpty">Đăng nhập để xem lịch sử chat.</div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="sidebar-section sidebar-section-other">
-                <div class="sidebar-section-title">Khác</div>
-                <button class="sidebar-link" id="panelNewsBtn" type="button">
-                    <i class="fas fa-newspaper"></i>
-                    <span>Tin tức</span>
-                </button>
-                <button class="sidebar-link" id="lawsBtn" type="button">
-                    <i class="fas fa-scale-balanced"></i>
-                    <span>Văn bản pháp luật</span>
-                </button>
-            </div>
+                <div class="sidebar-section sidebar-section-other">
+                    <div class="sidebar-section-title">Khác</div>
+                    <button class="sidebar-link" id="panelNewsBtn" type="button">
+                        <i class="fas fa-newspaper"></i>
+                        <span>Tin tức</span>
+                    </button>
+                    <button class="sidebar-link" id="lawsBtn" type="button">
+                        <i class="fas fa-scale-balanced"></i>
+                        <span>Văn bản pháp luật</span>
+                    </button>
+                </div>
 
             </div>
             <div class="sidebar-panel-footer">
-                <button class="sidebar-account-btn" id="sidebarAccountBtn" type="button" aria-label="Tài khoản & cài đặt">
+                <button class="sidebar-account-btn" id="sidebarAccountBtn" type="button"
+                    aria-label="Tài khoản & cài đặt">
                     <div class="avatar" id="sidebarAccountAvatar">U</div>
                     <div class="sidebar-account-meta">
                         <div class="sidebar-account-name" id="sidebarAccountName">Tài khoản</div>
@@ -297,54 +296,62 @@
         <!-- MAIN CONTAINER -->
         <div class="main-container">
 
-        <!-- MOBILE TOP BAR (shown on phones; replaces the left rail) -->
-        <header class="mobile-topbar" id="mobileTopbar" aria-label="Thanh trên (di động)">
-            <button class="mobile-topbar-btn" id="mobileSidebarBtn" type="button" aria-label="Mở thanh bên" title="Mở thanh bên">
-                <i class="fas fa-bars"></i>
-            </button>
-            <div class="mobile-topbar-title" id="mobileTopbarTitle">ChatIIP</div>
+            <!-- MOBILE TOP BAR  -->
+            <header class="mobile-topbar" id="mobileTopbar" aria-label="Thanh trên (di động)">
+                <button class="mobile-topbar-btn" id="mobileSidebarBtn" type="button" aria-label="Mở thanh bên"
+                    title="Mở thanh bên">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="mobile-topbar-title" id="mobileTopbarTitle">ChatIIP</div>
 
-            <div class="mobile-topbar-spacer"></div>
+                <div class="mobile-topbar-spacer"></div>
 
-            <!-- Logged-in: keep "Đoạn chat mới" (pencil) and show 3-dots on the top-right.
-                 Share lives inside the 3-dots menu on mobile (per requirement). -->
-            <button class="mobile-topbar-btn" id="mobileNewChatBtn" type="button" aria-label="Đoạn chat mới" title="Đoạn chat mới">
-                <i class="fas fa-pen-to-square" aria-hidden="true"></i>
-            </button>
-            <button class="mobile-topbar-btn" id="mobileChatMoreBtn" type="button" aria-label="Tùy chọn" title="Tùy chọn">
-                <i class="fas fa-ellipsis" aria-hidden="true"></i>
-            </button>
-        </header>
+                <!-- Logged-in -->
+                <button class="mobile-topbar-btn" id="mobileNewChatBtn" type="button" aria-label="Đoạn chat mới"
+                    title="Đoạn chat mới">
+                    <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+                </button>
+                <button class="mobile-topbar-btn" id="mobileChatMoreBtn" type="button" aria-label="Tùy chọn"
+                    title="Tùy chọn">
+                    <i class="fas fa-ellipsis" aria-hidden="true"></i>
+                </button>
+            </header>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="welcome-message" id="welcomeMessage">
-                <h1 id="welcomeMessageText">Tôi có thể giúp gì cho bạn?</h1>
+            <div class="chat-container" id="chatContainer">
+                <div class="welcome-message" id="welcomeMessage">
+                    <h1 id="welcomeMessageText">Tôi có thể giúp gì cho bạn?</h1>
+                </div>
             </div>
-        </div>
 
-        <div class="message-input-container centered" id="messageInputContainer">
-            <div class="message-input-wrapper">
+            <!-- Scroll-to-bottom -->
+            <button class="scroll-to-bottom" id="scrollToBottomBtn" type="button" aria-label="Về cuối đoạn chat"
+                title="Về cuối đoạn chat">
+                <i class="fas fa-arrow-down" aria-hidden="true"></i>
+            </button>
 
-                <button class="input-button" id="fileButton">
-                    <i class="fas fa-plus"></i>
-                </button>
+            <div class="message-input-container centered" id="messageInputContainer">
+                <div class="message-input-wrapper">
 
-                <textarea class="message-input" id="messageInput" placeholder="Hỏi bất cứ điều gì..."
-                    rows="1"></textarea>
+                    <button class="input-button" id="fileButton">
+                        <i class="fas fa-plus"></i>
+                    </button>
+
+                    <textarea class="message-input" id="messageInput" placeholder="Hỏi bất cứ điều gì..."
+                        rows="1"></textarea>
 
 
-                <button class="input-button" id="voiceButton">
-                    <i class="fas fa-microphone"></i>
-                </button>
+                    <button class="input-button" id="voiceButton">
+                        <i class="fas fa-microphone"></i>
+                    </button>
 
-                <button class="send-button" id="sendButton">
-                    <i class="fas fa-arrow-up"></i>
-                </button>
+                    <button class="send-button" id="sendButton">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
 
-                <input type="file" id="fileInput" multiple hidden>
+                    <input type="file" id="fileInput" multiple hidden>
 
+                </div>
             </div>
-        </div>
         </div>
     </div>
 
@@ -376,18 +383,20 @@
         </div>
     </div>
 
-    
-    <!-- Modal yêu cầu đăng nhập sau khi hỏi nhiều -->
+
+    <!-- yêu cầu đăng nhập  -->
     <div class="login-prompt-modal" id="loginPromptModal" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="login-prompt-backdrop"></div>
         <div class="login-prompt-dialog">
             <div class="login-prompt-title">Cảm ơn bạn đã dùng thử ChatIIP</div>
             <div class="login-prompt-text">
-                Đăng nhập hoặc đăng ký để sử dụng đầy đủ tính năng như lưu lịch sử và nhận phản hồi thông minh hơn.
+                Đăng nhập hoặc đăng ký để sử dụng đầy đủ tính năng như lưu lịch sử,tin tức,văn bản pháp luật và nhận phản hồi thông minh hơn.
             </div>
             <div class="login-prompt-actions">
-                <a href="/login" class="login-prompt-btn login-prompt-btn-primary" id="loginPromptLoginBtn">Đăng nhập</a>
-                <a href="/register" class="login-prompt-btn login-prompt-btn-secondary" id="loginPromptSignupBtn">Đăng ký miễn phí</a>
+                <a href="/login" class="login-prompt-btn login-prompt-btn-primary" id="loginPromptLoginBtn">Đăng
+                    nhập</a>
+                <a href="/register" class="login-prompt-btn login-prompt-btn-secondary" id="loginPromptSignupBtn">Đăng
+                    ký miễn phí</a>
             </div>
             <button type="button" class="login-prompt-ghost" id="loginPromptContinueGuestBtn">
                 Tiếp tục trạng thái đăng xuất
@@ -404,7 +413,7 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoicGh1MjAwMzJrMSIsImEiOiJjbWs0b28wcTYwYWlqM2RvbHJyeXVyY2tqIn0.sEOs-ZNvPqEXsSiOVRBw1Q';
     </script>
 
-    
+
     <!-- Mermaid (flowchart) + Chart.js (chart) -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
