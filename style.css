@@ -1898,7 +1898,7 @@ body.theme-dark .skel-line:before{ background: linear-gradient(90deg, transparen
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    touch-action: pan-x pan-y;
+    touch-action: pan-x pan-y pinch-zoom;
 }
 
 .data-table{
@@ -2012,7 +2012,7 @@ body.theme-dark .skel-line:before{ background: linear-gradient(90deg, transparen
     padding: 12px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    touch-action: pan-x pan-y;
+    touch-action: pan-x pan-y pinch-zoom;
 }
 
 .data-cards{
@@ -3244,7 +3244,7 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
 }
 
 /* Prevent chat container from scrolling when interacting with the map (mobile) */
-.iip-map-wrap{ touch-action: none; }
+.iip-map-wrap{ touch-action: pan-x pan-y pinch-zoom; }
 
 
 @media (max-width: 520px){
@@ -3484,6 +3484,20 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 12px;
   align-items: start;
+}
+
+/* Desktop (focus 1 KCN/CCN): thẻ chi tiết nằm full-width phía trên; bảng + map ở dưới */
+.iip-detail-top{
+  width: 100%;
+  margin: 0 0 12px 0;
+}
+.iip-detail-top .iip-detail-card{
+  margin: 0;
+}
+
+/* Single (1 tỉnh / 1 KCN cụ thể): đồng bộ tỉ lệ 55% (bảng) : 45% (bản đồ) */
+.iip-side-by-side.iip-single{
+  grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
 }
 
 /* Compare mode: bảng (2 tỉnh) bên trái, bản đồ bên phải */
@@ -3887,3 +3901,16 @@ body[data-page="chat"] .unauth-menu-link:hover{
   border-bottom-color: var(--title);
 }
 
+
+
+/* ✅ Desktop focus-KCN: nếu thẻ chi tiết đã được tách lên trên mà phía dưới chỉ còn bản đồ,
+   thì để bản đồ full-width (không bị hẹp 45%). */
+.iip-side-by-side.iip-map-only{
+  grid-template-columns: 1fr !important;
+}
+.iip-side-by-side.iip-map-only .iip-side-left{
+  display: none !important;
+}
+.iip-side-by-side.iip-map-only .iip-side-right{
+  grid-column: 1 / -1;
+}

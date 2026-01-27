@@ -1162,7 +1162,11 @@ function createIipMapCard({ title, subtitle }) {
     try {
         const stopBubble = (ev) => { try { ev.stopPropagation(); } catch (_) {} };
         const stopAndPrevent = (ev) => {
-            try { ev.preventDefault?.(); } catch (_) {}
+            // ✅ Do NOT block pinch-zoom (2+ fingers). Only block 1-finger scroll chaining.
+            const isPinch = !!(ev && ev.touches && ev.touches.length > 1);
+            if (!isPinch) {
+                try { ev.preventDefault?.(); } catch (_) {}
+            }
             try { ev.stopPropagation?.(); } catch (_) {}
         };
 
@@ -1672,11 +1676,13 @@ function tryMakeIipSideBySide(botEl, mapCard, question) {
         // chỉ áp dụng khi trong bubble có bảng/thẻ dữ liệu (data-block)
         if (!bubble.querySelector(".data-block")) return false;
 
-        // Chỉ bật layout side-by-side khi truy vấn thực sự có 1 tỉnh hoặc so sánh >=2 tỉnh.
-        // - So sánh (>=2 tỉnh): xếp dọc để map full-width ngang bảng (đúng yêu cầu trước đó)
-        // - 1 tỉnh: bảng + map nằm cạnh nhau (không làm hỏng bảng, giữ overflow)
+                // Chỉ bật layout side-by-side khi có:
+        // - So sánh (>=2 tỉnh) HOẶC
+        // - 1 tỉnh HOẶC
+        // - 1 KCN/CCN cụ thể (bubble đã có thẻ .iip-detail-card)
         let _provs2 = [];
         let _prov1 = "";
+        const _isFocusKcn = !!bubble.querySelector(".iip-detail-card");
         try {
             _provs2 = (extractProvincesFromText(String(question || ""), 2) || []).filter(Boolean);
         } catch (_) {
@@ -1684,7 +1690,7 @@ function tryMakeIipSideBySide(botEl, mapCard, question) {
         }
         if (_provs2.length < 2) {
             try { _prov1 = String(extractProvinceFromText(String(question || "")) || "").trim(); } catch (_) { _prov1 = ""; }
-            if (!_prov1) return false;
+            if (!_prov1 && !_isFocusKcn) return false;
         }
 
         const wrap = document.createElement("div");
@@ -1711,6 +1717,35 @@ function tryMakeIipSideBySide(botEl, mapCard, question) {
         const right = document.createElement("div");
         right.className = "iip-side-right";
 
+        // ✅ Desktop focus-KCN: chỉ đưa thẻ chi tiết lên trên cùng (full-width)
+        // khi còn có ít nhất 1 khối dữ liệu khác (ví dụ: bảng kết quả).
+        // Nếu chỉ có 2 khối (thẻ chi tiết + bản đồ) thì giữ side-by-side 55/45.
+        try {
+            const isDesktop = window.matchMedia && window.matchMedia("(min-width: 900px)").matches;
+            const detail = bubble.querySelector(".iip-detail-card");
+            const hasOtherBlocks = !!bubble.querySelector(".data-block:not(.iip-detail-card)");
+            let movedDetail = false;
+
+            if (isDesktop && detail && hasOtherBlocks) {
+                const top = document.createElement("div");
+                top.className = "iip-detail-top";
+                // move detail out of bubble
+                top.appendChild(detail);
+                // insert above the side-by-side wrap (right before actions)
+                stack.insertBefore(top, actions);
+                movedDetail = true;
+            }
+
+            // ✅ Nếu đã đưa thẻ chi tiết lên trên nhưng phần còn lại không có bảng/thẻ nào,
+            // thì cho bản đồ full-width (tránh map bị hẹp 45% và để trống bên trái).
+            if (movedDetail) {
+                const remaining = bubble.querySelectorAll(".data-block").length;
+                if (remaining === 0) {
+                    wrap.classList.add("iip-map-only");
+                }
+            }
+        } catch (_) {}
+
         // move nodes
         left.appendChild(bubble);
         right.appendChild(mapCard);
@@ -1718,7 +1753,7 @@ function tryMakeIipSideBySide(botEl, mapCard, question) {
         wrap.appendChild(left);
         wrap.appendChild(right);
 
-        // chèn trước action buttons
+        // chèn trước action buttons (bên dưới thẻ chi tiết nếu có)
         stack.insertBefore(wrap, actions);
         return true;
     } catch (_) {
@@ -2665,6 +2700,9 @@ try {
             const wrap = closestRich(e.target);
             if (!wrap) return;
             __markRichInteraction();
+
+            // ✅ Allow pinch-zoom (2+ fingers) on rich content
+            if (e.touches && e.touches.length > 1) return;
 
             if (!(wrap.classList && (wrap.classList.contains('data-table-wrap') || wrap.classList.contains('data-cards-wrap')))) return;
 
