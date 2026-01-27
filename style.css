@@ -3077,6 +3077,119 @@ body.theme-dark .mapboxgl-popup-content .iip-popup-btn.secondary{
   box-shadow: 0 12px 30px rgba(0,0,0,0.06);
 }
 
+/* === IIP DETAIL CARD (ZONE INFO) === */
+.iip-detail-card{
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.06);
+}
+
+.iip-detail-media{
+  width: 100%;
+  max-height: 190px;
+  overflow: hidden;
+  background: var(--surface2);
+}
+
+.iip-detail-img{
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  display:block;
+}
+
+.iip-detail-body{ padding: 12px; }
+
+.iip-detail-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.iip-detail-name{
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--title);
+  line-height: 1.25;
+}
+
+.iip-detail-badges{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+
+.iip-badge{
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--title);
+}
+
+.iip-badge.secondary{ opacity: .9; }
+
+.iip-detail-grid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 700px){
+  .iip-detail-grid{ grid-template-columns: 1fr 1fr; }
+}
+
+.iip-detail-row{
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--surface2);
+}
+
+.iip-detail-label{
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text);
+  opacity: .85;
+  margin-bottom: 4px;
+}
+
+.iip-detail-value{
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--title);
+  line-height: 1.3;
+}
+
+.iip-detail-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top: 10px;
+}
+
+.iip-detail-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--title);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.iip-detail-btn:hover{ filter: brightness(0.98); }
+
+.iip-detail-btn.secondary{ opacity: .95; }
+
+
 .iip-map-head{
   display:flex;
   align-items:flex-start;

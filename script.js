@@ -218,7 +218,7 @@ function normalizeViText(input) {
 
 function isIndustrialQuery(question) {
     const t = normalizeViText(question);
-    return /(khu cong nghiep|kcn|cum cong nghiep|ccn|industrial\s*zone)/.test(t);
+    return /(khu cong nghiep|kcn|cum cong nghiep|ccn|khu che xuat|kcx|khu kinh te|kkt|industrial\s*(zone|park)|industrial\s*park|vsip)/.test(t);
 }
 
 function buildIipIndex(geojson) {
@@ -658,6 +658,154 @@ function ensureCompareListsInBubble(botEl, geoFeatures, provinces) {
     }
 }
 
+
+
+function __safeUrl(url) {
+    try {
+        const u = String(url || '').trim();
+        if (!u) return '';
+        if (/^https?:\/\//i.test(u)) return u;
+        return '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function __pickFirstImage(imagesField) {
+    const s = String(imagesField || '').trim();
+    if (!s) return '';
+    // API đôi khi trả nhiều URL phân tách bằng dấu phẩy / xuống dòng
+    const parts = s.split(/[\n\r\t, ]+/).map(p => p.trim()).filter(Boolean);
+    for (const p of parts) {
+        const u = __safeUrl(p);
+        if (u) return u;
+    }
+    return '';
+}
+
+function __formatMaybeNumber(v) {
+    const s = String(v ?? '').trim();
+    if (!s) return '';
+    // nếu là số: format theo locale vi-VN
+    const n = Number(s.replace(/,/g, ''));
+    if (!Number.isNaN(n) && String(n) !== '0') {
+        try { return new Intl.NumberFormat('vi-VN').format(n); } catch (_) { return String(n); }
+    }
+    return s;
+}
+
+function __extractIndustries(props) {
+    const p = props || {};
+    const cand = [
+        p.industries,
+        p.industry,
+        p.careers,
+        p.career,
+        p.nganh_nghe,
+        p.nganhNghe,
+        p.nganh,
+        p.sectors,
+        p.sector
+    ];
+
+    for (const v of cand) {
+        if (!v) continue;
+        if (Array.isArray(v)) {
+            const arr = v.map(x => String(x || '').trim()).filter(Boolean);
+            if (arr.length) return arr.join(', ');
+        } else {
+            const s = String(v).trim();
+            if (s) return s;
+        }
+    }
+
+    // dataset hiện tại có career_id nhưng không có mapping; hiển thị trạng thái
+    if (p.career_id) return 'Có (đang cập nhật danh mục ngành)';
+    return 'Đang cập nhật';
+}
+
+function buildIipDetailCardHtml(feature) {
+    const p = feature?.properties || {};
+
+    const name = escapeHtmlGlobal(p.name || 'Khu công nghiệp');
+    const kind = escapeHtmlGlobal(p.kind || p.type || '');
+    const province = escapeHtmlGlobal(p.province || '');
+    const address = escapeHtmlGlobal(p.address || '');
+
+    const priceRaw = (p.price !== undefined && p.price !== null) ? __formatMaybeNumber(p.price) : '';
+    const priceUnit = escapeHtmlGlobal(p.price_unit || p.unit || '');
+    const price = escapeHtmlGlobal(priceRaw ? (priceUnit ? `${priceRaw} ${priceUnit}` : String(priceRaw)) : '');
+
+    const acreageRaw = (p.acreage !== undefined && p.acreage !== null) ? __formatMaybeNumber(p.acreage) : '';
+    const acreage = escapeHtmlGlobal(acreageRaw ? String(acreageRaw) : '');
+
+    const occRaw = (p.occupancy !== undefined && p.occupancy !== null) ? __formatMaybeNumber(p.occupancy) : '';
+    const occ = escapeHtmlGlobal(occRaw ? String(occRaw) : '');
+
+    const industries = escapeHtmlGlobal(__extractIndustries(p));
+
+    const source = escapeHtmlGlobal(p.source || '');
+    const updated = escapeHtmlGlobal(p.updated_at || p.updatedAt || '');
+
+    const img = __pickFirstImage(p.images);
+    const imgHtml = img ? `<div class="iip-detail-media"><img class="iip-detail-img" src="${img}" alt="${name}" loading="lazy" /></div>` : '';
+
+    const coords = feature?.geometry?.coordinates || [];
+    const lng = Number(coords[0]);
+    const lat = Number(coords[1]);
+    const googleQuery = encodeURIComponent(`${p.name || ''} ${p.address || ''}`.trim() || `${lat},${lng}`);
+    const gmaps = `https://www.google.com/maps/search/?api=1&query=${googleQuery}`;
+
+    const codeRaw = String(p.code || '').trim();
+    const codeClean = codeRaw.replace(/^https?:\/\/iipmap\.com\/?/i, '').replace(/^\/+/, '');
+    const path = codeClean ? (codeClean.startsWith('zones/') ? codeClean : `zones/${codeClean}`) : '';
+    const sourceUrl = path ? `https://iipmap.com/${path.split('/').map(encodeURIComponent).join('/')}` : '';
+
+    const badge1 = kind ? `<span class="iip-badge">${escapeHtmlGlobal(kind)}</span>` : '';
+    const badge2 = province ? `<span class="iip-badge secondary">${province}</span>` : '';
+
+    const row = (label, value, suffix='') => {
+        const v = String(value || '').trim();
+        if (!v) return '';
+        return `<div class="iip-detail-row"><div class="iip-detail-label">${label}</div><div class="iip-detail-value">${escapeHtmlGlobal(v)}${suffix}</div></div>`;
+    };
+
+    const rows = [
+        row('Địa điểm', address || province),
+        row('Giá', price),
+        row('Diện tích', acreage, acreage ? ' ha' : ''),
+        row('Lấp đầy', occ, occ ? '%' : ''),
+        row('Ngành nghề', industries),
+        row('Nguồn', source),
+        row('Cập nhật', updated)
+    ].filter(Boolean).join('');
+
+    const actions = `
+      <div class="iip-detail-actions">
+        <a class="iip-detail-btn secondary" href="${gmaps}" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-location-dot"></i> Google Maps
+        </a>
+        ${sourceUrl ? `
+        <a class="iip-detail-btn" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> IIPMAP
+        </a>` : ''}
+      </div>
+    `;
+
+    return `
+      <div class="iip-detail-card">
+        ${imgHtml}
+        <div class="iip-detail-body">
+          <div class="iip-detail-head">
+            <div class="iip-detail-name">${name}</div>
+            <div class="iip-detail-badges">${badge1}${badge2}</div>
+          </div>
+          <div class="iip-detail-grid">${rows}</div>
+          ${actions}
+        </div>
+      </div>
+    `;
+}
 function buildFeaturePopupHtml(feature) {
     const p = feature?.properties || {};
     const name = escapeHtmlGlobal(p.name || "Khu công nghiệp");
@@ -777,6 +925,116 @@ function focusFeatureOnMap(map, feature) {
             .addTo(map);
     } catch (_) {}
 }
+
+
+// ====================  EXACT ZONE FOCUS (KCN/CCN)  ====================
+// Mục tiêu: khi user hỏi cụ thể 1 KCN/CCN ("KCN X ở đâu?"), bản đồ auto zoom đúng điểm đó + mở popup.
+function __buildZoneSearchTokens(question) {
+    const t = normalizeViText(question);
+
+    // stopwords cho truy vấn định vị / hỏi đường
+    const stop = new Set([
+        "khu","cong","nghiep","cum","kcn","ccn","industrial","zone",
+        "o","ở","tai","tại","thuoc","thuộc","tinh","tỉnh","tp","thanh","thành","pho","phố",
+        "dia","địa","chi","chỉ","duong","đường","ban","bản","do","đồ","map","maps","google",
+        "la","là","gi","gì","nao","nào","nhat","nhất","gan","gần","near",
+        "cho","tôi","toi","minh","mình","den","đến","toi","tới","huong","hướng","dan","dẫn"
+    ]);
+
+    // loại bỏ từ thuộc tên tỉnh (để không "kéo" match sai vào nhiều điểm cùng tỉnh)
+    const provWordSet = new Set();
+    try {
+        const provs = extractProvincesFromText(String(question || ""), 2) || [];
+        const prov1 = provs.length ? provs : (extractProvinceFromText(String(question || "")) ? [extractProvinceFromText(String(question || ""))] : []);
+        prov1.map(p => normalizeViText(p)).filter(Boolean).forEach(pn => {
+            pn.split(" ").forEach(w => { if (w && w.length >= 3) provWordSet.add(w); });
+        });
+        ["tinh","tp","thanh","pho","ba","br","riau"].forEach(w => provWordSet.add(w));
+    } catch (_) {}
+
+    // token: cho phép ngắn hơn (>=2) để bắt "vsip", "yen", ...
+    const tokens = t.split(" ")
+        .map(w => w.trim())
+        .filter(w => w && !stop.has(w) && !provWordSet.has(w))
+        .filter(w => w.length >= 2)
+        .slice(0, 10);
+
+    // ưu tiên token đặc trưng (dài hơn) lên trước
+    tokens.sort((a, b) => (b.length - a.length));
+    return tokens;
+}
+
+function __scoreFeatureForTokens(feature, tokens) {
+    try {
+        const name = normalizeViText(feature?.properties?.name || "");
+        const addr = normalizeViText(feature?.properties?.address || "");
+        if (!name) return { score: 0, inName: 0 };
+
+        let score = 0;
+        let inName = 0;
+
+        for (const tok of tokens || []) {
+            if (!tok) continue;
+            const hitName = name.includes(tok);
+            const hitAddr = addr.includes(tok);
+
+            if (hitName) { score += 3; inName += 1; }
+            else if (hitAddr) { score += 1; }
+        }
+
+        // bonus: match theo cụm từ
+        if (tokens && tokens.length >= 2) {
+            const phrase = tokens.slice(0, 4).join(" ");
+            if (phrase && name.includes(phrase)) score += 4;
+        }
+
+        return { score, inName };
+    } catch (_) {
+        return { score: 0, inName: 0 };
+    }
+}
+
+function detectFocusFeatureFromQuestion(question, candidateFeatures, allFeatures) {
+    try {
+        if (!isIndustrialQuery(question)) return null;
+        if (isCompareQuery(question)) return null;
+
+        const tokens = __buildZoneSearchTokens(question);
+        if (!tokens || tokens.length < 2) return null;
+
+        const candidates = (candidateFeatures && candidateFeatures.length) ? candidateFeatures : (allFeatures || []);
+        if (!candidates || !candidates.length) return null;
+
+        let best = null, bestScore = -1, bestInName = 0;
+        let secondScore = -1;
+
+        for (const f of candidates) {
+            const r = __scoreFeatureForTokens(f, tokens);
+            const s = r.score;
+            if (s > bestScore) {
+                secondScore = bestScore;
+                bestScore = s;
+                bestInName = r.inName;
+                best = f;
+            } else if (s > secondScore) {
+                secondScore = s;
+            }
+        }
+
+        // tiêu chí tự tin:
+        // - token trúng trong tên >= 2 (tránh match mơ hồ theo tỉnh/địa chỉ)
+        // - score đủ lớn và cách biệt so với top2
+        const minScore = Math.max(6, Math.min(12, tokens.length * 3));
+        if (!best || bestInName < 2) return null;
+        if (bestScore < minScore) return null;
+        if (secondScore >= 0 && (bestScore - secondScore) < 2) return null;
+
+        return best;
+    } catch (_) {
+        return null;
+    }
+}
+
 
 
 function filterFeaturesForQuestion(question, geojson) {
@@ -1372,13 +1630,21 @@ function renderIipMap(mapWrap, geojson, features, meta = {}) {
         });
         map.on("mouseenter", "points", () => map.getCanvas().style.cursor = "pointer");
         map.on("mouseleave", "points", () => map.getCanvas().style.cursor = "");
-
         // fit bounds: ưu tiên zoom theo ranh giới tỉnh nếu user hỏi theo tỉnh
+        // ✅ Nếu truy vấn là 1 KCN/CCN cụ thể: auto zoom đúng điểm + mở popup
         try {
-            const provQuery = (meta?.provinces && meta.provinces.length) ? meta.provinces : (meta?.province || "");
-            const hasProv = Array.isArray(provQuery) ? provQuery.length : Boolean(provQuery);
-            const ok = hasProv ? fitToProvinceByNames(map, map.__provGeo, provQuery) : false;
-            if (!ok) fitBoundsToFeatures(map, data.features);
+            if (meta?.focusFeature) {
+                try {
+                    const pv = String(meta.focusFeature?.properties?.province || "").trim();
+                    if (pv) setProvinceHighlightFilter(map, [pv]);
+                } catch (_) {}
+                focusFeatureOnMap(map, meta.focusFeature);
+            } else {
+                const provQuery = (meta?.provinces && meta.provinces.length) ? meta.provinces : (meta?.province || "");
+                const hasProv = Array.isArray(provQuery) ? provQuery.length : Boolean(provQuery);
+                const ok = hasProv ? fitToProvinceByNames(map, map.__provGeo, provQuery) : false;
+                if (!ok) fitBoundsToFeatures(map, data.features);
+            }
         } catch (_) {
             fitBoundsToFeatures(map, data.features);
         }
@@ -1531,8 +1797,57 @@ async function appendIndustrialMapToBot(botEl, question, data) {
         }
     }
 
+// ✅ Nếu user hỏi CỤ THỂ 1 KCN/CCN: tự động định vị chính xác điểm đó trên bản đồ
+// (tránh trường hợp đang fit theo tỉnh nên user phải tự tìm trong danh sách)
+let __focusFeature = null;
+let __wantExact = false;
+try {
+    if (!isCompareQuery(question)) {
+        // Nếu lọc ra đúng 1 điểm thì focus luôn
+        if (features && features.length === 1) {
+            __focusFeature = features[0];
+        } else {
+            // Nếu đang có nhiều điểm, thử tìm điểm khớp nhất theo tên trong câu hỏi
+            __focusFeature = detectFocusFeatureFromQuestion(question, features, geo.features);
+
+            // Chỉ thu hẹp về 1 điểm khi câu hỏi mang tính định vị ("ở đâu", "địa chỉ", "chỉ đường", ...)
+            const qt = normalizeViText(question);
+            __wantExact = /(o dau|dia chi|chi duong|ban do|map|maps|google maps|den|toi|to|hien thi tren ban do)/.test(qt);
+            if (__wantExact && __focusFeature) {
+                features = [__focusFeature];
+                const nm = String(__focusFeature?.properties?.name || '').trim();
+                const pv = String(__focusFeature?.properties?.province || '').trim();
+                subtitle = nm ? `Đã định vị: ${nm}${pv ? ' — ' + pv : ''}.` : subtitle;
+            }
+        }
+    }
+} catch (_) {
+    __focusFeature = null;
+    __wantExact = false;
+}
+
+
+
     const stack = botEl.querySelector(".bot-stack");
     const actions = botEl.querySelector(".message-actions");
+
+    // ✅ Nếu đã định vị 1 KCN/CCN cụ thể: hiển thị thẻ thông tin chi tiết (giá/địa điểm/diện tích/ngành nghề...)
+    try {
+        if (__focusFeature && !isCompareQuery(question)) {
+            const bubble = botEl.querySelector(".message-bubble");
+            if (bubble && !bubble.querySelector('.iip-detail-card')) {
+                const t = String(bubble.textContent || '');
+                const looksLikeError = /Bạn vui lòng nêu rõ|"error"|\berror\b/i.test(t) || !!bubble.querySelector('pre.json-block');
+                const detailHtml = buildIipDetailCardHtml(__focusFeature);
+                if (looksLikeError) {
+                    bubble.innerHTML = detailHtml;
+                } else {
+                    bubble.insertAdjacentHTML('afterbegin', detailHtml);
+                }
+            }
+        }
+    } catch (_) {}
+
 
     // ✅ So sánh 2 tỉnh: luôn chèn danh sách (bảng) nếu backend không trả JSON list
     const __detectedProvinces = (() => {
@@ -1577,7 +1892,7 @@ async function appendIndustrialMapToBot(botEl, question, data) {
     // ✅ Đưa danh sách và bản đồ nằm ngang hàng (desktop)
     try { tryMakeIipSideBySide(botEl, card, question); } catch (_) {}
 
-    const map = renderIipMap(mapWrap, geo, features, { question, province: (rAuto?.province || r?.province || vis?.province || ""), provinces: __detectedProvinces });
+    const map = renderIipMap(mapWrap, geo, features, { question, province: (rAuto?.province || r?.province || vis?.province || ""), provinces: __detectedProvinces, focusFeature: __focusFeature });
 
     btnFit?.addEventListener("click", () => {
         try {
@@ -2209,6 +2524,8 @@ function __isNearBottom() {
 // =========================
 function scrollToBottom(behavior = "smooth", force = false) {
     if (!chatContainer) return;
+    // 🔒 Theo yêu cầu: chỉ cuộn khi người dùng bấm Gửi hoặc bấm nút cuộn xuống.
+    if (!force) return;
 
     // Khi đang sửa tin nhắn thì KHÔNG tự kéo xuống (đứng yên tại vị trí đang sửa)
     try {
@@ -3383,8 +3700,7 @@ function sendMessage() {
             i = Math.min(text.length, i + advance);
             if (streamNode) streamNode.textContent = text.slice(0, i);
 
-            // keep view pinned to bottom while streaming
-            try { scrollToBottom('auto', true); } catch (_) {}
+            // 🚫 Không ghim xuống đáy khi streaming (theo yêu cầu)
 
             if (i >= text.length) {
                 bubbleEl.classList.remove('streaming');
@@ -3620,8 +3936,7 @@ try {
         // Prefer cards on mobile for better UX
         try { autoPreferCardsOnMobile(botMessageElement); } catch (_) {}
 
-        // ⭐ Auto scroll
-        setTimeout(scrollToBottom, 50);
+        // 🚫 Không auto-scroll khi bot trả lời (theo yêu cầu)
 
         // ⭐ Return element để có thể gắn chart/table vào đúng message
         return botMessageElement;
@@ -3698,7 +4013,7 @@ try {
             }
         });
 
-        setTimeout(() => scrollToBottom('auto', true), 100);
+        setTimeout(() => scrollToBottom('auto', false), 100);
     }
 
     async function loadChatHistoryFromServer() {
@@ -3855,7 +4170,7 @@ try {
         `;
         chatContainer.appendChild(el);
 
-        try { setTimeout(() => scrollToBottom('auto', true), 20); } catch (_) {}
+        try { setTimeout(() => scrollToBottom('auto', false), 20); } catch (_) {}
     }
 
 // ====================  EXCEL VISUALIZE (CHART/TABLE)  ====================
