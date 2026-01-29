@@ -130,12 +130,8 @@
             });
             const user = data.user;
             setCurrentUser(user);
-            closeOverlay("authOverlay");
-            syncAllUI();
-            const msg = currentAuthTab === "register"
-              ? "Đăng ký/Đăng nhập bằng Google thành công!"
-              : "Đăng nhập Google thành công!";
-            showToast(msg, "success");
+            // Reload immediately so the page renders logged-in UI from boot
+            applyAuthStateToUI({ closeAccountOverlay: true });
           } catch (err) {
             showToast(err.message || "Google Sign-In thất bại.", "error");
           }
@@ -214,11 +210,9 @@
     const hidden = document.getElementById(hiddenInputId);
     if (!hidden) return;
 
-    // tránh khởi tạo lại nhiều lần
     if (hidden.dataset.enhanced === "1") return;
     hidden.dataset.enhanced = "1";
-
-    // dùng hidden để submit, hiển thị 6 ô riêng
+    
     hidden.type = "hidden";
 
     const container = document.createElement("div");
@@ -851,6 +845,28 @@ function injectAuthUI() {
     syncAccountModalUI(user);
   }
 
+  function applyAuthStateToUI(options = {}) {
+    const closeAuthOverlay = options.closeAuthOverlay !== false; // default true
+    const closeOtpOverlay = options.closeOtpOverlay !== false; // default true
+    const closeAccountOverlay = !!options.closeAccountOverlay;
+
+    try {
+      if (closeAuthOverlay) closeOverlay("authOverlay");
+      if (closeOtpOverlay) closeOverlay("otpOverlay");
+      if (closeAccountOverlay) closeOverlay("accountOverlay");
+    } catch (_) {}
+
+    const run = () => {
+      try { syncAllUI(); } catch (_) {}
+    };
+    try {
+      if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+      else setTimeout(run, 0);
+    } catch (_) {
+      run();
+    }
+  }
+
   // --------------- Auth actions ----------------
   async function handleRegister(name, email, password, phone) {
     const trimmedName = (name || "").trim();
@@ -933,9 +949,8 @@ function injectAuthUI() {
 
       const user = data.user;
       setCurrentUser(user);
-      closeOverlay("authOverlay");
-      syncAllUI();
-      showToast("Đăng nhập thành công!", "success");
+      // Reload immediately so the page renders logged-in UI from boot
+      try { location.reload(); } catch (_) {}
     } catch (err) {
       showToast(err.message || "Đăng nhập thất bại.", "error");
     }
@@ -958,10 +973,8 @@ function injectAuthUI() {
 
     const sessionUser = { id: user.id, name: user.name, email: user.email, provider: user.provider };
     setCurrentUser(sessionUser);
-
-    showToast(`Đăng nhập thành công bằng ${provider === "google" ? "Google" : "Facebook"}!`, "success");
-    closeOverlay("authOverlay");
-    syncAllUI();
+    // Reload immediately so the page renders logged-in UI from boot
+    try { location.reload(); } catch (_) {}
   }
 
   function logout() {
@@ -972,9 +985,8 @@ function injectAuthUI() {
         // ignore
       }
       clearCurrentUser();
-      showToast("Bạn đã đăng xuất.", "info");
-      closeOverlay("accountOverlay");
-      syncAllUI();
+      // Reload immediately so the page renders logged-out UI from boot
+      try { location.reload(); } catch (_) {}
     })();
   }
 
@@ -1004,11 +1016,9 @@ function injectAuthUI() {
       });
       const user = data.user;
       setCurrentUser(user);
-      closeOverlay("otpOverlay");
-      closeOverlay("authOverlay");
-      syncAllUI();
-      showToast("Xác thực email thành công! Bạn đã được đăng nhập.", "success");
+      // Let reload drive the UI transition
       pendingRegisterEmail = null;
+      try { location.reload(); } catch (_) {}
     } catch (err) {
       showToast(err.message || "Xác thực OTP thất bại.", "error");
     }
