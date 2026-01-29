@@ -136,6 +136,7 @@
               ? "Đăng ký/Đăng nhập bằng Google thành công!"
               : "Đăng nhập Google thành công!";
             showToast(msg, "success");
+            refreshAfterAuth();
           } catch (err) {
             showToast(err.message || "Google Sign-In thất bại.", "error");
           }
@@ -851,6 +852,12 @@ function injectAuthUI() {
     syncAccountModalUI(user);
   }
 
+  function refreshAfterAuth(delayMs = 300) {
+    window.setTimeout(() => {
+      window.location.reload();
+    }, delayMs);
+  }
+
   // --------------- Auth actions ----------------
   async function handleRegister(name, email, password, phone) {
     const trimmedName = (name || "").trim();
@@ -936,6 +943,7 @@ function injectAuthUI() {
       closeOverlay("authOverlay");
       syncAllUI();
       showToast("Đăng nhập thành công!", "success");
+      refreshAfterAuth();
     } catch (err) {
       showToast(err.message || "Đăng nhập thất bại.", "error");
     }
@@ -962,6 +970,7 @@ function injectAuthUI() {
     showToast(`Đăng nhập thành công bằng ${provider === "google" ? "Google" : "Facebook"}!`, "success");
     closeOverlay("authOverlay");
     syncAllUI();
+    refreshAfterAuth();
   }
 
   function logout() {
@@ -975,6 +984,7 @@ function injectAuthUI() {
       showToast("Bạn đã đăng xuất.", "info");
       closeOverlay("accountOverlay");
       syncAllUI();
+      refreshAfterAuth();
     })();
   }
 
@@ -1009,6 +1019,7 @@ function injectAuthUI() {
       syncAllUI();
       showToast("Xác thực email thành công! Bạn đã được đăng nhập.", "success");
       pendingRegisterEmail = null;
+      refreshAfterAuth();
     } catch (err) {
       showToast(err.message || "Xác thực OTP thất bại.", "error");
     }
