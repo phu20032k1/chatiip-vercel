@@ -674,7 +674,6 @@ function __safeUrl(url) {
 function __pickFirstImage(imagesField) {
     const s = String(imagesField || '').trim();
     if (!s) return '';
-    // API đôi khi trả nhiều URL phân tách bằng dấu phẩy / xuống dòng
     const parts = s.split(/[\n\r\t, ]+/).map(p => p.trim()).filter(Boolean);
     for (const p of parts) {
         const u = __safeUrl(p);
@@ -2237,10 +2236,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const voiceButton = document.getElementById('voiceButton');
     const fileInput = document.getElementById('fileInput');
 
-    const loginPromptModal = document.getElementById('loginPromptModal');
-    const loginPromptContinueGuestBtn = document.getElementById('loginPromptContinueGuestBtn');
-    const loginPromptLoginBtn = document.getElementById('loginPromptLoginBtn');
-    const loginPromptSignupBtn = document.getElementById('loginPromptSignupBtn');
+    // login prompt elements removed (feature disabled)
 
     // =========================
     // Auto-hide composer (message input bar) on scroll down
@@ -2314,97 +2310,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     
 
-    // =========================
-    // Giới hạn 5 câu hỏi cho khách + modal nhắc đăng nhập
-    // =========================
-    const GUEST_QUESTION_COUNT_KEY = "chatiip_guest_question_count";
-    const GUEST_LOGIN_PROMPT_ALWAYS_KEY = "chatiip_guest_login_prompt_always";
-
-    function getGuestQuestionCount() {
-        try {
-            const raw = localStorage.getItem(GUEST_QUESTION_COUNT_KEY);
-            const n = parseInt(raw || "0", 10);
-            if (!Number.isFinite(n) || n < 0) return 0;
-            return n;
-        } catch (_) {
-            return 0;
-        }
-    }
-
-    function incrementGuestQuestionCount() {
-        try {
-            let n = getGuestQuestionCount();
-            n += 1;
-            localStorage.setItem(GUEST_QUESTION_COUNT_KEY, String(n));
-            if (n >= 7) {
-                localStorage.setItem(GUEST_LOGIN_PROMPT_ALWAYS_KEY, "1");
-            }
-            return n;
-        } catch (_) {
-            return 0;
-        }
-    }
-
-    function shouldAlwaysShowLoginPrompt() {
-        try {
-            return localStorage.getItem(GUEST_LOGIN_PROMPT_ALWAYS_KEY) === "1";
-        } catch (_) {
-            return false;
-        }
-    }
-
-    function openLoginPromptModal() {
-        if (!loginPromptModal) return;
-        loginPromptModal.classList.add("is-open");
-        loginPromptModal.setAttribute("aria-hidden", "false");
-    }
-
-    function closeLoginPromptModal() {
-        if (!loginPromptModal) return;
-        loginPromptModal.classList.remove("is-open");
-        loginPromptModal.setAttribute("aria-hidden", "true");
-    }
-
-    // Gán sự kiện cho nút trong modal
-    if (loginPromptContinueGuestBtn) {
-        loginPromptContinueGuestBtn.addEventListener("click", function () {
-            closeLoginPromptModal();
-        });
-    }
-
-    if (loginPromptModal) {
-        loginPromptModal.addEventListener("click", function (ev) {
-            try {
-                if (ev.target === loginPromptModal || ev.target.classList.contains("login-prompt-backdrop")) {
-                    closeLoginPromptModal();
-                }
-            } catch (_) {}
-        });
-
-
-    if (loginPromptLoginBtn) {
-        loginPromptLoginBtn.addEventListener("click", function (ev) {
-            try { ev.preventDefault(); } catch (_) {}
-            try { closeLoginPromptModal(); } catch (_) {}
-            try {
-                const btn = document.getElementById("loginOpenBtn");
-                if (btn) btn.click();
-            } catch (_) {}
-        });
-    }
-
-    if (loginPromptSignupBtn) {
-        loginPromptSignupBtn.addEventListener("click", function (ev) {
-            try { ev.preventDefault(); } catch (_) {}
-            try { closeLoginPromptModal(); } catch (_) {}
-            try {
-                const btn = document.getElementById("registerOpenBtn");
-                if (btn) btn.click();
-            } catch (_) {}
-        });
-    }
-
-    }
+    // Login prompt removed per user request: related guest-count and modal logic deleted.
 
 
 // =========================
@@ -3399,16 +3305,7 @@ function sendMessage() {
         // Nếu đang đọc to câu trả lời trước đó thì dừng lại khi user gửi tin nhắn mới.
         try { stopTTS(); } catch (_) {}
 
-        // Đếm số câu hỏi của khách và hiển thị modal khi đến câu thứ 5
-        try {
-            const isGuestUser = (typeof isLoggedIn === "function") ? !isLoggedIn() : !(getLoggedInUser && getLoggedInUser()?.id);
-            if (isGuestUser) {
-                const count = incrementGuestQuestionCount();
-                if (count === 5) {
-                    openLoginPromptModal();
-                }
-            }
-        } catch (_) {}
+        // login prompt logic for guest-question count removed
 
         const messageId = (window.crypto && crypto.randomUUID)
             ? crypto.randomUUID()
@@ -6046,12 +5943,7 @@ logToGoogle({
     // Init layout + history based on auth state, and re-sync whenever auth changes.
     applyAuthLayout();
     try { syncChatHasMessagesUI(); } catch (_) {}
-    try {
-        const loggedInNow = (typeof isLoggedIn === "function") ? isLoggedIn() : false;
-        if (!loggedInNow && shouldAlwaysShowLoginPrompt()) {
-            openLoginPromptModal();
-        }
-    } catch (_) {}
+    // previous logic to auto-open login prompt removed
 
     try { updateHistoryUI(""); } catch (_) {}
 

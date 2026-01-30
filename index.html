@@ -72,18 +72,14 @@
     <link rel="canonical" href="https://chatiip.com/" />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
     <meta name="theme-color" content="#0b1220">
-    <!-- SPEED BOOST -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://botchat.iipmap.com">
-    <link rel="dns-prefetch" href="https://vietbaichatiip.onrender.com">
-
     <meta http-equiv="Content-Language" content="vi">
     <meta property="og:locale" content="vi_VN">
     <meta property="article:publisher" content="https://facebook.com/">
     <meta property="article:section" content="Tin tức">
 
-    <!-- BASE SEO -->
     <meta name="description"
         content="ChatIIP là trợ lý AI chuyên sâu về khu/cụm công nghiệp, pháp luật, quy hoạch, thuế–ưu đãi và tư vấn đầu tư công nghiệp tại Việt Nam.">
     <meta name="author" content="ChatIIP">
@@ -137,19 +133,16 @@
 }
 </script>
 
-
-
-    <!-- Google Analytics -->
+    <!-- GA -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9DLYZL4633"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-        // Track 2 GA4 properties
         gtag('config', 'G-9DLYZL4633');
         gtag('config', 'G-R5YNLSJQMZ');
     </script>
-    <!-- FAVICON (applies site-wide) -->
+    <!-- FAVICON -->
     <link rel="icon" type="image/x-icon" href="favicon.ico?v=20260123120000" />
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=20260123120000" />
     <link rel="apple-touch-icon" href="favicon.ico?v=20260123120000" />
@@ -174,7 +167,7 @@
             <span class="unauth-brand-text">ChatIIP</span>
         </button>
 
-        <!-- MENU GIỮA MÀN HÌNH -->
+        <!-- MENU -->
         <nav class="unauth-menu" aria-label="Menu thông tin">
             <a href="gioi-thieu.html" class="unauth-menu-link">Giới thiệu</a>
             <a href="ve-chung-toi.html" class="unauth-menu-link">Về chúng tôi</a>
@@ -384,32 +377,12 @@
     </div>
 
 
-    <!-- yêu cầu đăng nhập  -->
-    <div class="login-prompt-modal" id="loginPromptModal" aria-hidden="true" role="dialog" aria-modal="true">
-        <div class="login-prompt-backdrop"></div>
-        <div class="login-prompt-dialog">
-            <div class="login-prompt-title">Cảm ơn bạn đã dùng thử ChatIIP</div>
-            <div class="login-prompt-text">
-                Đăng nhập hoặc đăng ký để sử dụng đầy đủ tính năng như lưu lịch sử,tin tức,văn bản pháp luật và nhận phản hồi thông minh hơn.
-            </div>
-            <div class="login-prompt-actions">
-                <a href="/login" class="login-prompt-btn login-prompt-btn-primary" id="loginPromptLoginBtn">Đăng
-                    nhập</a>
-                <a href="/register" class="login-prompt-btn login-prompt-btn-secondary" id="loginPromptSignupBtn">Đăng
-                    ký miễn phí</a>
-            </div>
-            <button type="button" class="login-prompt-ghost" id="loginPromptContinueGuestBtn">
-                Tiếp tục trạng thái đăng xuất
-            </button>
-        </div>
-    </div>
+    <!-- login prompt removed per user request -->
 
 
-    <!-- SCRIPT -->
     <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
     <script>
-        // Mapbox access token (public)
         mapboxgl.accessToken = 'pk.eyJ1IjoicGh1MjAwMzJrMSIsImEiOiJjbWs0b28wcTYwYWlqM2RvbHJyeXVyY2tqIn0.sEOs-ZNvPqEXsSiOVRBw1Q';
     </script>
 
@@ -417,9 +390,7 @@
     <!-- Mermaid (flowchart) + Chart.js (chart) -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
     <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('script.js') + '\"><\/script>');</script>
-
     <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
 </body>
 
