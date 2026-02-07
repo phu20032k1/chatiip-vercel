@@ -44,6 +44,149 @@ async function logToGoogle(payload) {
 // ====================  BACKEND CHAT SESSION (HISTORY)  ====================
 const CHAT_HISTORY_BASE_URL = "https://botchat.iipmap.com/history";
 
+
+// ====================  MODEL PICKER (ChatIIP / ChatIIP-mini)  ====================
+const CHATIIP_MODEL_STORAGE_KEY = "chatiip_active_model_v1";
+
+const CHATIIP_MODELS = {
+    main: {
+        key: "main",
+        label: "ChatIIP",
+        subtitle: "AI chuyên sâu về khu công nghiệp, luật, nghị định..",
+        chatUrl: "https://botchat.iipmap.com/chat"
+    },
+    mini: {
+        key: "mini",
+        label: "ChatIIP-mini",
+        subtitle: "Mô hình mini có thể trả lời mọi loại câu hỏi",
+        chatUrl: "https://mini.chatiip.com/chat"
+    }
+};
+
+function getActiveModelKey() {
+    try {
+        const k = String(localStorage.getItem(CHATIIP_MODEL_STORAGE_KEY) || "").trim();
+        return CHATIIP_MODELS[k] ? k : "main";
+    } catch (_) {
+        return "main";
+    }
+}
+
+function getActiveChatUrl() {
+    const k = getActiveModelKey();
+    return (CHATIIP_MODELS[k] && CHATIIP_MODELS[k].chatUrl) ? CHATIIP_MODELS[k].chatUrl : CHATIIP_MODELS.main.chatUrl;
+}
+
+function updateModelUI() {
+    try {
+        const k = getActiveModelKey();
+        const m = CHATIIP_MODELS[k] || CHATIIP_MODELS.main;
+
+        [
+            document.getElementById("modelPickerTitle"),
+            document.getElementById("unauthModelTitle"),
+            document.getElementById("mobileModelTitle")
+        ].filter(Boolean).forEach(el => (el.textContent = m.label));
+
+        const subEl = document.getElementById("modelPickerSubtitle");
+        if (subEl) subEl.textContent = m.subtitle;
+
+        const menu = document.getElementById("modelMenu");
+        if (menu) {
+            menu.querySelectorAll(".model-item").forEach(btn => {
+                const isActive = btn.getAttribute("data-model") === k;
+                btn.classList.toggle("is-active", isActive);
+            });
+        }
+    } catch (_) {}
+}
+
+function setActiveModelKey(key) {
+    const k = CHATIIP_MODELS[key] ? key : "main";
+    try { localStorage.setItem(CHATIIP_MODEL_STORAGE_KEY, k); } catch (_) {}
+
+    // Khi đổi mô hình: bắt đầu session backend mới để tránh lẫn ngữ cảnh.
+    try { clearBackendSessionId(); } catch (_) {}
+
+    // Reset UI chat (nếu hàm đã sẵn có ở dưới)
+    try { if (typeof resetChat === "function") resetChat(); } catch (_) {}
+
+    updateModelUI();
+}
+
+function initModelPicker() {
+    const menu = document.getElementById("modelMenu");
+    if (!menu) return;
+
+    const anchors = [
+        document.getElementById("modelPickerBtn"),
+        document.getElementById("unauthBrandBtn"),
+        document.getElementById("mobileModelBtn")
+    ].filter(Boolean);
+
+    let isOpen = false;
+
+    function openAt(anchor) {
+        const r = anchor.getBoundingClientRect();
+        menu.hidden = false;
+        menu.setAttribute("aria-hidden", "false");
+        // Prefer left-aligned under anchor; keep within viewport
+        const margin = 8;
+        const width = Math.min(320, window.innerWidth - margin * 2);
+        menu.style.minWidth = width + "px";
+
+        // Measure after showing
+        const mr = menu.getBoundingClientRect();
+        let left = r.left;
+        if (left + mr.width > window.innerWidth - margin) left = window.innerWidth - margin - mr.width;
+        if (left < margin) left = margin;
+
+        let top = r.bottom + 8;
+        if (top + mr.height > window.innerHeight - margin) {
+            top = Math.max(margin, r.top - 8 - mr.height);
+        }
+
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+        isOpen = true;
+    }
+
+    function closeMenu() {
+        if (!isOpen) return;
+        menu.hidden = true;
+        menu.setAttribute("aria-hidden", "true");
+        isOpen = false;
+    }
+
+    anchors.forEach(a => {
+        a.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen) return closeMenu();
+            updateModelUI();
+            openAt(a);
+        });
+    });
+
+    menu.addEventListener("click", (e) => {
+        const btn = e.target.closest(".model-item");
+        if (!btn) return;
+        const k = btn.getAttribute("data-model");
+        setActiveModelKey(k);
+        closeMenu();
+    });
+
+    document.addEventListener("click", () => closeMenu());
+    window.addEventListener("resize", () => closeMenu());
+    window.addEventListener("scroll", () => closeMenu(), true);
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeMenu();
+    });
+
+    // Initial UI
+    updateModelUI();
+}
+
 // Auth guard: when NOT logged in, do not persist chat/history to localStorage.
 function __isLoggedInLS() {
     try {
@@ -2220,6 +2363,9 @@ async function loadLanguageUI(langCode) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Model picker (ChatIIP / ChatIIP-mini)
+    try { initModelPicker(); } catch (_) {}
+
 
 
 
@@ -3375,7 +3521,7 @@ function sendMessage() {
             ? { question: message, session_id: backendSessionId }
             : { question: message };
 
-        fetch("https://botchat.iipmap.com/chat", {
+        fetch(getActiveChatUrl(), {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -4877,7 +5023,7 @@ try {
         });
 
         try {
-            const res = await fetch('https://botchat.iipmap.com/chat', {
+            const res = await fetch(getActiveChatUrl(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question })
@@ -4980,7 +5126,7 @@ logToGoogle({
     }
 
     async function postChat(question) {
-        const res = await fetch('https://botchat.iipmap.com/chat', {
+        const res = await fetch(getActiveChatUrl(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question })
@@ -5031,7 +5177,7 @@ logToGoogle({
         try {
             const backendSessionId = getBackendSessionId();
             const payload = backendSessionId ? { question: newText, session_id: backendSessionId } : { question: newText };
-            const res = await fetch('https://botchat.iipmap.com/chat', {
+            const res = await fetch(getActiveChatUrl(), {
                 signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -5449,7 +5595,7 @@ logToGoogle({
             ? { question: text, session_id: backendSessionId }
             : { question: text };
 
-        fetch("https://botchat.iipmap.com/chat", {
+        fetch(getActiveChatUrl(), {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
