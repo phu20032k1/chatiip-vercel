@@ -163,9 +163,8 @@
             </span>
         </button>
 
-        <button class="unauth-brand" id="unauthBrandBtn" type="button" aria-label="Chọn mô hình" title="Chọn mô hình">
-            <span class="unauth-brand-text" id="unauthModelTitle">ChatIIP</span>
-            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        <button class="unauth-brand" id="unauthBrandBtn" type="button" aria-label="ChatIIP" title="ChatIIP">
+            <span class="unauth-brand-text">ChatIIP</span>
         </button>
 
         <!-- MENU -->
@@ -228,13 +227,10 @@
         <!-- SIDEBAR PANEL  -->
         <aside class="sidebar-panel" id="sidebarPanel" aria-hidden="true">
             <div class="sidebar-panel-header">
-                <button class="brand-switcher" id="modelPickerBtn" type="button" aria-label="Chọn mô hình" title="Chọn mô hình">
-                    <div class="brand">
-                        <div class="brand-title" id="modelPickerTitle">ChatIIP</div>
-                        <div class="brand-subtitle" id="modelPickerSubtitle">AI chuyên sâu về khu công nghiệp, luật, nghị định..</div>
-                    </div>
-                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
-                </button>
+                <div class="brand">
+                    <div class="brand-title">ChatIIP</div>
+                    <div class="brand-subtitle">Trợ lý AI</div>
+                </div>
                 <button class="sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Đóng thanh bên"
                     title="Đóng">
                     <i class="fas fa-xmark"></i>
@@ -299,10 +295,7 @@
                     title="Mở thanh bên">
                     <i class="fas fa-bars"></i>
                 </button>
-                <button class="mobile-topbar-title-btn" id="mobileModelBtn" type="button" aria-label="Chọn mô hình" title="Chọn mô hình">
-                    <span id="mobileModelTitle">ChatIIP</span>
-                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
-                </button>
+                <div class="mobile-topbar-title" id="mobileTopbarTitle">ChatIIP</div>
 
                 <div class="mobile-topbar-spacer"></div>
 
@@ -387,25 +380,7 @@
     <!-- login prompt removed per user request -->
 
 
-        <!-- MODEL PICKER MENU -->
-    <div class="model-menu" id="modelMenu" aria-hidden="true" hidden>
-        <button class="model-item" type="button" data-model="main">
-            <div class="model-item-meta">
-                <div class="model-item-title">ChatIIP</div>
-                <div class="model-item-desc">AI chuyên sâu về khu công nghiệp, luật, nghị định..</div>
-            </div>
-            <i class="fas fa-check model-item-check" aria-hidden="true"></i>
-        </button>
-        <button class="model-item" type="button" data-model="mini">
-            <div class="model-item-meta">
-                <div class="model-item-title">ChatIIP-mini</div>
-                <div class="model-item-desc">Mô hình mini có thể trả lời mọi loại câu hỏi</div>
-            </div>
-            <i class="fas fa-check model-item-check" aria-hidden="true"></i>
-        </button>
-    </div>
-
-<!-- Mapbox GL JS -->
+    <!-- Mapbox GL JS -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.js"></script>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoicGh1MjAwMzJrMSIsImEiOiJjbWs0b28wcTYwYWlqM2RvbHJyeXVyY2tqIn0.sEOs-ZNvPqEXsSiOVRBw1Q';
@@ -415,6 +390,10 @@
     <!-- Mermaid (flowchart) + Chart.js (chart) -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- html2canvas: capture DOM to image for PDF (keeps Vietnamese text rendering) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF: export chat to PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('script.js') + '\"><\/script>');</script>
     <script>document.write('<script src=\"' + window.__CHATIIP_ASSET('auth.js') + '\"><\/script>');</script>
 </body>

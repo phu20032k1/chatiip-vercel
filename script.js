@@ -44,149 +44,6 @@ async function logToGoogle(payload) {
 // ====================  BACKEND CHAT SESSION (HISTORY)  ====================
 const CHAT_HISTORY_BASE_URL = "https://botchat.iipmap.com/history";
 
-
-// ====================  MODEL PICKER (ChatIIP / ChatIIP-mini)  ====================
-const CHATIIP_MODEL_STORAGE_KEY = "chatiip_active_model_v1";
-
-const CHATIIP_MODELS = {
-    main: {
-        key: "main",
-        label: "ChatIIP",
-        subtitle: "AI chuyên sâu về khu công nghiệp, luật, nghị định..",
-        chatUrl: "https://botchat.iipmap.com/chat"
-    },
-    mini: {
-        key: "mini",
-        label: "ChatIIP-mini",
-        subtitle: "Mô hình mini có thể trả lời mọi loại câu hỏi",
-        chatUrl: "https://mini.chatiip.com/chat"
-    }
-};
-
-function getActiveModelKey() {
-    try {
-        const k = String(localStorage.getItem(CHATIIP_MODEL_STORAGE_KEY) || "").trim();
-        return CHATIIP_MODELS[k] ? k : "main";
-    } catch (_) {
-        return "main";
-    }
-}
-
-function getActiveChatUrl() {
-    const k = getActiveModelKey();
-    return (CHATIIP_MODELS[k] && CHATIIP_MODELS[k].chatUrl) ? CHATIIP_MODELS[k].chatUrl : CHATIIP_MODELS.main.chatUrl;
-}
-
-function updateModelUI() {
-    try {
-        const k = getActiveModelKey();
-        const m = CHATIIP_MODELS[k] || CHATIIP_MODELS.main;
-
-        [
-            document.getElementById("modelPickerTitle"),
-            document.getElementById("unauthModelTitle"),
-            document.getElementById("mobileModelTitle")
-        ].filter(Boolean).forEach(el => (el.textContent = m.label));
-
-        const subEl = document.getElementById("modelPickerSubtitle");
-        if (subEl) subEl.textContent = m.subtitle;
-
-        const menu = document.getElementById("modelMenu");
-        if (menu) {
-            menu.querySelectorAll(".model-item").forEach(btn => {
-                const isActive = btn.getAttribute("data-model") === k;
-                btn.classList.toggle("is-active", isActive);
-            });
-        }
-    } catch (_) {}
-}
-
-function setActiveModelKey(key) {
-    const k = CHATIIP_MODELS[key] ? key : "main";
-    try { localStorage.setItem(CHATIIP_MODEL_STORAGE_KEY, k); } catch (_) {}
-
-    // Khi đổi mô hình: bắt đầu session backend mới để tránh lẫn ngữ cảnh.
-    try { clearBackendSessionId(); } catch (_) {}
-
-    // Reset UI chat (nếu hàm đã sẵn có ở dưới)
-    try { if (typeof resetChat === "function") resetChat(); } catch (_) {}
-
-    updateModelUI();
-}
-
-function initModelPicker() {
-    const menu = document.getElementById("modelMenu");
-    if (!menu) return;
-
-    const anchors = [
-        document.getElementById("modelPickerBtn"),
-        document.getElementById("unauthBrandBtn"),
-        document.getElementById("mobileModelBtn")
-    ].filter(Boolean);
-
-    let isOpen = false;
-
-    function openAt(anchor) {
-        const r = anchor.getBoundingClientRect();
-        menu.hidden = false;
-        menu.setAttribute("aria-hidden", "false");
-        // Prefer left-aligned under anchor; keep within viewport
-        const margin = 8;
-        const width = Math.min(320, window.innerWidth - margin * 2);
-        menu.style.minWidth = width + "px";
-
-        // Measure after showing
-        const mr = menu.getBoundingClientRect();
-        let left = r.left;
-        if (left + mr.width > window.innerWidth - margin) left = window.innerWidth - margin - mr.width;
-        if (left < margin) left = margin;
-
-        let top = r.bottom + 8;
-        if (top + mr.height > window.innerHeight - margin) {
-            top = Math.max(margin, r.top - 8 - mr.height);
-        }
-
-        menu.style.left = left + "px";
-        menu.style.top = top + "px";
-        isOpen = true;
-    }
-
-    function closeMenu() {
-        if (!isOpen) return;
-        menu.hidden = true;
-        menu.setAttribute("aria-hidden", "true");
-        isOpen = false;
-    }
-
-    anchors.forEach(a => {
-        a.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (isOpen) return closeMenu();
-            updateModelUI();
-            openAt(a);
-        });
-    });
-
-    menu.addEventListener("click", (e) => {
-        const btn = e.target.closest(".model-item");
-        if (!btn) return;
-        const k = btn.getAttribute("data-model");
-        setActiveModelKey(k);
-        closeMenu();
-    });
-
-    document.addEventListener("click", () => closeMenu());
-    window.addEventListener("resize", () => closeMenu());
-    window.addEventListener("scroll", () => closeMenu(), true);
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") closeMenu();
-    });
-
-    // Initial UI
-    updateModelUI();
-}
-
 // Auth guard: when NOT logged in, do not persist chat/history to localStorage.
 function __isLoggedInLS() {
     try {
@@ -2008,22 +1865,8 @@ try {
     const stack = botEl.querySelector(".bot-stack");
     const actions = botEl.querySelector(".message-actions");
 
-    // ✅ Nếu đã định vị 1 KCN/CCN cụ thể: hiển thị thẻ thông tin chi tiết (giá/địa điểm/diện tích/ngành nghề...)
-    try {
-        if (__focusFeature && !isCompareQuery(question)) {
-            const bubble = botEl.querySelector(".message-bubble");
-            if (bubble && !bubble.querySelector('.iip-detail-card')) {
-                const t = String(bubble.textContent || '');
-                const looksLikeError = /Bạn vui lòng nêu rõ|"error"|\berror\b/i.test(t) || !!bubble.querySelector('pre.json-block');
-                const detailHtml = buildIipDetailCardHtml(__focusFeature);
-                if (looksLikeError) {
-                    bubble.innerHTML = detailHtml;
-                } else {
-                    bubble.insertAdjacentHTML('afterbegin', detailHtml);
-                }
-            }
-        }
-    } catch (_) {}
+    // 🚫 (ĐÃ TẮT THEO YÊU CẦU): Không tự chèn thẻ/bảng thông tin KCN/CCN vào câu trả lời.
+    // Giữ lại bản đồ, nhưng không render "bảng/thẻ" KCN trong bubble.
 
 
     // ✅ So sánh 2 tỉnh: luôn chèn danh sách (bảng) nếu backend không trả JSON list
@@ -2042,12 +1885,7 @@ try {
         return out;
     })();
 
-    try {
-        if (__detectedProvinces.length >= 2) {
-            // chèn bảng danh sách theo từng tỉnh (từ features đã lọc)
-            ensureCompareListsInBubble(botEl, features, __detectedProvinces);
-        }
-    } catch (_) {}
+    // 🚫 (ĐÃ TẮT THEO YÊU CẦU): Không tự chèn bảng so sánh/danh sách KCN theo tỉnh vào bubble.
 
     const { card, mapWrap, btnFit, btnToggle, btnTerrain, btnProvinces, hint, subEl } = createIipMapCard({
         title: "Bản đồ khu công nghiệp",
@@ -2363,9 +2201,6 @@ async function loadLanguageUI(langCode) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Model picker (ChatIIP / ChatIIP-mini)
-    try { initModelPicker(); } catch (_) {}
-
 
 
 
@@ -3521,7 +3356,7 @@ function sendMessage() {
             ? { question: message, session_id: backendSessionId }
             : { question: message };
 
-        fetch(getActiveChatUrl(), {
+        fetch("https://botchat.iipmap.com/chat", {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -3905,32 +3740,40 @@ try {
         let finalMessage = rawMessage ?? "";
         let forcePre = false;
 
+        // Giới hạn khi stringify dữ liệu lớn để tránh treo UI
+        const stringifyLimited = (obj, maxItems = 50) => {
+            try {
+                if (Array.isArray(obj) && obj.length > maxItems) {
+                    return JSON.stringify({
+                        note: `Dữ liệu quá dài (${obj.length} dòng). Hiển thị ${maxItems} dòng đầu.`,
+                        data: obj.slice(0, maxItems)
+                    }, null, 2);
+                }
+                if (obj && typeof obj === 'object' && Array.isArray(obj.data) && obj.data.length > maxItems) {
+                    return JSON.stringify({
+                        ...obj,
+                        note: `Dữ liệu quá dài (${obj.data.length} dòng). Hiển thị ${maxItems} dòng đầu.`,
+                        data: obj.data.slice(0, maxItems)
+                    }, null, 2);
+                }
+                return JSON.stringify(obj, null, 2);
+            } catch (_) {
+                return String(obj);
+            }
+        };
+
         try {
             // ✅ Nếu server trả object/array trực tiếp (không phải string) → đừng để rơi vào "[object Object]"
             if (rawMessage && typeof rawMessage === "object") {
                 const obj = rawMessage;
 
-                // ưu tiên: array hoặc {data:[...]}
-                if (Array.isArray(obj)) {
-                    finalMessage = jsonToIndustrialTableV2(obj);
-                } else if (Array.isArray(obj.data)) {
-                    finalMessage = jsonToIndustrialTableV2(obj.data);
+                // ❗️BỎ render bảng KCN: chỉ ưu tiên text, còn lại hiển thị JSON gọn
+                const maybeText = obj.answer ?? obj.reply ?? obj.message ?? obj.text ?? "";
+                if (typeof maybeText === "string" && maybeText.trim()) {
+                    finalMessage = maybeText;
                 } else {
-                    // các field phổ biến
-                    const maybeText = obj.answer ?? obj.reply ?? obj.message ?? obj.text ?? "";
-                    if (typeof maybeText === "string" && maybeText.trim()) {
-                        finalMessage = maybeText;
-                    } else if (maybeText && typeof maybeText === "object") {
-                        if (Array.isArray(maybeText)) finalMessage = jsonToIndustrialTableV2(maybeText);
-                        else if (Array.isArray(maybeText.data)) finalMessage = jsonToIndustrialTableV2(maybeText.data);
-                        else {
-                            finalMessage = JSON.stringify(maybeText, null, 2);
-                            forcePre = true;
-                        }
-                    } else {
-                        finalMessage = JSON.stringify(obj, null, 2);
-                        forcePre = true;
-                    }
+                    finalMessage = stringifyLimited(obj);
+                    forcePre = true;
                 }
             } else {
                 // ✅ Trường hợp message là string: thử parse JSON (1-3 lần) như cũ
@@ -3946,10 +3789,18 @@ try {
                     try { parsed = JSON.parse(parsed); } catch (e) { }
                 }
 
-                if (parsed && typeof parsed === "object" && Array.isArray(parsed.data)) {
-                    finalMessage = jsonToIndustrialTableV2(parsed.data);
-                } else if (Array.isArray(parsed)) {
-                    finalMessage = jsonToIndustrialTableV2(parsed);
+                // ❗️BỎ render bảng KCN: nếu parse ra object có answer/message/text thì dùng, còn lại show JSON
+                if (parsed && typeof parsed === "object") {
+                    const maybeText = parsed.answer ?? parsed.reply ?? parsed.message ?? parsed.text;
+                    if (typeof maybeText === 'string' && maybeText.trim()) {
+                        finalMessage = maybeText;
+                    } else if (Array.isArray(parsed) || Array.isArray(parsed.data)) {
+                        finalMessage = stringifyLimited(parsed);
+                        forcePre = true;
+                    } else {
+                        // fallback: giữ raw để không phá markdown
+                        finalMessage = rawMessage;
+                    }
                 } else {
                     finalMessage = rawMessage;
                 }
@@ -3995,8 +3846,8 @@ try {
                     ${renderActionButton('like', 'fa-regular fa-thumbs-up', 'Phản hồi tốt')}
                     ${renderActionButton('dislike', 'fa-regular fa-thumbs-down', 'Phản hồi không tốt')}
                     ${renderActionButton('tts', 'fa-solid fa-volume-high', 'Đọc')}
-                    ${renderActionButton('refresh', 'fa-solid fa-arrows-rotate', 'Trả lời lại')}
                     ${renderActionButton('copy', 'fa-regular fa-copy', 'Sao chép')}
+                    ${renderActionButton('pdf', 'fa-solid fa-file-pdf', 'Xuất PDF')}
                     ${renderActionButton('share', 'fa-solid fa-share-nodes', 'Chia sẻ')}
                 </div>
             </div>
@@ -5023,7 +4874,7 @@ try {
         });
 
         try {
-            const res = await fetch(getActiveChatUrl(), {
+            const res = await fetch('https://botchat.iipmap.com/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question })
@@ -5069,6 +4920,97 @@ logToGoogle({
         }
     }
 
+    // ====================  EXPORT PDF (Q/A)  ====================
+    function findNearestUserForBot(botEl) {
+        let cur = botEl?.previousElementSibling;
+        while (cur) {
+            if (cur.classList && cur.classList.contains('user-message')) return cur;
+            cur = cur.previousElementSibling;
+        }
+        return null;
+    }
+
+    async function exportPdfFor(botEl) {
+        try {
+            const jsPDFCtor = window?.jspdf?.jsPDF;
+            if (!jsPDFCtor) {
+                alert('Chưa tải được thư viện PDF. Vui lòng tải lại trang.');
+                return;
+            }
+
+            // Use html2canvas -> image PDF to preserve Vietnamese diacritics
+            const h2c = window?.html2canvas;
+            if (!h2c) {
+                alert('Chưa tải được html2canvas. Vui lòng tải lại trang.');
+                return;
+            }
+
+            const userEl = findNearestUserForBot(botEl);
+            const question = (userEl?.dataset?.text || userEl?.querySelector('.message-bubble')?.innerText || botEl?.dataset?.question || '').trim();
+            const answer = (botEl?.querySelector('.message-bubble')?.innerText || '').trim();
+
+            // Build a lightweight DOM snapshot (offscreen) and render to canvas
+            const wrap = document.createElement('div');
+            wrap.style.position = 'fixed';
+            wrap.style.left = '-10000px';
+            wrap.style.top = '0';
+            wrap.style.width = '794px'; // ~A4 width at 96dpi (better aspect)
+            wrap.style.padding = '32px';
+            wrap.style.background = '#ffffff';
+            wrap.style.color = '#0b1220';
+            wrap.style.fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+            wrap.innerHTML = `
+              <div style="font-size:18px;font-weight:800;margin-bottom:18px">Đoạn chat (Câu hỏi & Trả lời)</div>
+              <div style="font-size:14px;font-weight:800;margin:10px 0 6px">Bạn:</div>
+              <div style="font-size:13px;line-height:1.55;white-space:pre-wrap">${escapeHtmlGlobal(question || '(Trống)')}</div>
+              <div style="height:14px"></div>
+              <div style="font-size:14px;font-weight:800;margin:10px 0 6px">Chatbot:</div>
+              <div style="font-size:13px;line-height:1.55;white-space:pre-wrap">${escapeHtmlGlobal(answer || '(Trống)')}</div>
+            `;
+            document.body.appendChild(wrap);
+
+            const canvas = await h2c(wrap, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true
+            });
+
+            // Cleanup DOM
+            wrap.remove();
+
+            const imgData = canvas.toDataURL('image/png');
+            const doc = new jsPDFCtor({ unit: 'pt', format: 'a4' });
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+
+            // Fit image to page width, paginate vertically if needed
+            const imgW = pageW;
+            const imgH = (canvas.height * imgW) / canvas.width;
+
+            let y = 0;
+            let remaining = imgH;
+            while (remaining > 0) {
+                doc.addImage(imgData, 'PNG', 0, y, imgW, imgH);
+                remaining -= pageH;
+                if (remaining > 0) {
+                    doc.addPage();
+                    y -= pageH;
+                }
+            }
+
+            const safeName = (question || 'chat')
+                .slice(0, 40)
+                .replace(/[\\/:*?"<>|]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            doc.save(`${safeName || 'chat'}.pdf`);
+        } catch (e) {
+            console.error('exportPdfFor error', e);
+            alert('Không thể xuất PDF.');
+        }
+    }
+
     // ====================  USER MESSAGE ACTIONS (COPY/SELECT/EDIT/SHARE)  ====================
     function selectTextInElement(el) {
         if (!el) return;
@@ -5109,7 +5051,7 @@ logToGoogle({
           <textarea class="edit-textarea" rows="3"></textarea>
           <div class="edit-actions">
             <button type="button" class="edit-btn" data-edit-action="cancel">Hủy</button>
-            <button type="button" class="edit-btn primary" data-edit-action="save">Lưu & gửi</button>
+            <button type="button" class="edit-btn primary" data-edit-action="save">Lưu & tạo lại</button>
           </div>
         `;
 
@@ -5126,7 +5068,7 @@ logToGoogle({
     }
 
     async function postChat(question) {
-        const res = await fetch(getActiveChatUrl(), {
+        const res = await fetch('https://botchat.iipmap.com/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question })
@@ -5177,7 +5119,7 @@ logToGoogle({
         try {
             const backendSessionId = getBackendSessionId();
             const payload = backendSessionId ? { question: newText, session_id: backendSessionId } : { question: newText };
-            const res = await fetch(getActiveChatUrl(), {
+            const res = await fetch('https://botchat.iipmap.com/chat', {
                 signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -5364,8 +5306,8 @@ logToGoogle({
             }
             return;
         }
-        if (action === 'refresh') {
-            await regenerateAnswerFor(botEl);
+        if (action === 'pdf') {
+            await exportPdfFor(botEl);
             return;
         }
 
@@ -5595,7 +5537,7 @@ logToGoogle({
             ? { question: text, session_id: backendSessionId }
             : { question: text };
 
-        fetch(getActiveChatUrl(), {
+        fetch("https://botchat.iipmap.com/chat", {
             signal: __chatAbortCtrl ? __chatAbortCtrl.signal : undefined,
             method: "POST",
             headers: { "Content-Type": "application/json" },
