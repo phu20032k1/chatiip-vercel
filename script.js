@@ -2754,12 +2754,19 @@ try {
         if (!obj || typeof obj !== "object") return false;
         const t = String(obj.type || obj.kind || "").toLowerCase();
         const fmt = String(obj?.payload?.format || obj?.format || "").toLowerCase();
+        const hasChartB64 = (
+            (typeof obj.chart_base64 === 'string' && obj.chart_base64.trim()) ||
+            (typeof obj?.payload?.chart_base64 === 'string' && obj.payload.chart_base64.trim())
+        );
         return (
             t.includes("flowchart") ||
             t.includes("chart") ||
             t.includes("excel_visualize") ||
             fmt.includes("mermaid") ||
-            fmt.includes("chartjs")
+            fmt.includes("chartjs") ||
+            fmt.includes("base64") ||
+            fmt.includes("image") ||
+            hasChartB64
         );
     }
 
@@ -2769,9 +2776,13 @@ try {
 		try {
 			const t = String(vizObj?.type || vizObj?.kind || "").toLowerCase();
 			const fmt = String(vizObj?.payload?.format || vizObj?.format || "").toLowerCase();
+			const hasChartB64 = (
+				(typeof vizObj?.chart_base64 === 'string' && vizObj.chart_base64.trim()) ||
+				(typeof vizObj?.payload?.chart_base64 === 'string' && vizObj.payload.chart_base64.trim())
+			);
 			if (t.includes("flowchart") || fmt.includes("mermaid")) return "Đây là flowchart:";
 			if (t.includes("excel_visualize")) return "Đây là bảng dữ liệu:";
-			if (t.includes("chart") || fmt.includes("chartjs")) return "Đây là biểu đồ:";
+			if (t.includes("chart") || fmt.includes("chartjs") || fmt.includes("base64") || fmt.includes("image") || hasChartB64) return "Đây là biểu đồ:";
 			return "";
 		} catch (_) {
 			return "";
@@ -3188,6 +3199,40 @@ function quoteMermaidLabels(code) {
     }
 
     // ====================  CHART (Chart.js) ====================
+
+    // Support server responses that return a ready-to-display chart image (base64)
+    // Example payloads supported:
+    //  - { type: 'chart', payload: { format: 'base64', image_base64: '...', mime: 'image/png' } }
+    //  - { type: 'chart', payload: { base64: '...' } }
+    //  - { type: 'chart', image_base64: '...' }
+    function extractChartBase64(data) {
+        if (!data || typeof data !== "object") return null;
+        const payload = (data.payload && typeof data.payload === "object") ? data.payload : null;
+
+        const type = String(data.type || payload?.type || "").toLowerCase();
+        const format = String(payload?.format || data.format || "").toLowerCase();
+
+        const isChart = type.includes("chart") || format === "chartjs" || format.includes("base64") || format.includes("image");
+        if (!isChart) return null;
+
+        const raw =
+            payload?.image_base64 || payload?.img_base64 || payload?.png_base64 || payload?.base64 ||
+            data.image_base64 || data.img_base64 || data.png_base64 || data.base64;
+
+        if (typeof raw !== "string") return null;
+        const b64 = raw.trim();
+        if (!b64) return null;
+
+        const mime = String(payload?.mime || data.mime || "image/png").trim() || "image/png";
+        const src = b64.startsWith("data:image/") ? b64 : `data:${mime};base64,${b64}`;
+
+        return {
+            title: String(data.answer || data.title || payload?.title || "Biểu đồ"),
+            src,
+            mime
+        };
+    }
+
     function extractChartJs(data) {
         if (!data || typeof data !== "object") return null;
         const payload = (data.payload && typeof data.payload === "object") ? data.payload : null;
@@ -3228,6 +3273,47 @@ function quoteMermaidLabels(code) {
     }
 
     function handleChartJsResponse(data, botEl) {
+        // 0) If server provides a base64 image, render it as an <img> (preferred)
+        const img = extractChartBase64(data);
+        if (img && botEl) {
+            botEl.querySelectorAll(".chartimg-viz").forEach(n => n.remove());
+            botEl.querySelectorAll(".chartjs-viz").forEach(n => n.remove());
+
+            const stack = botEl.querySelector(".bot-stack");
+            const actions = botEl.querySelector(".message-actions");
+
+            const wrap = document.createElement("div");
+            wrap.className = "chartimg-viz";
+            wrap.style.marginTop = "10px";
+
+            wrap.innerHTML = `
+              <div class="data-block">
+                <div class="data-block-header">
+                  <div class="data-block-title">${escapeHtmlGlobal(img.title || "Biểu đồ")}</div>
+                </div>
+                <div class="chartimg-wrap" style="padding:10px;">
+                  <img alt="chart" style="width:100%;height:auto;display:block;border-radius:10px;" />
+                </div>
+              </div>
+            `;
+
+            const imgel = wrap.querySelector("img");
+            if (imgel) imgel.src = img.src;
+
+            try {
+                const bubble = botEl.querySelector('.message-bubble');
+                if (bubble) bubble.classList.add('wide');
+                autoPreferCardsOnMobile(botEl);
+            } catch (_) {}
+
+            if (stack && actions) stack.insertBefore(wrap, actions);
+            else if (stack) stack.appendChild(wrap);
+            else botEl.appendChild(wrap);
+
+            setTimeout(scrollToBottom, 80);
+            return true;
+        }
+
         const chart = extractChartJs(data);
         if (!chart || !botEl) return false;
         if (!window.Chart) return false; // chart.js chưa load
@@ -4145,26 +4231,32 @@ try {
         const topType = data.type ? String(data.type) : "";
         const payloadType = payload?.type ? String(payload.type) : "";
 
-        const looksLikeExcelViz =
-            topType.includes("excel_visualize") ||
-            payloadType.includes("excel_visualize");
-
-        if (!looksLikeExcelViz) return null;
-
-        // chart_base64 có thể nằm ở top-level hoặc trong payload
-        const chartBase64 =
+        const chartB64 =
             (typeof data.chart_base64 === "string" && data.chart_base64.trim()) ? data.chart_base64.trim() :
             (typeof payload?.chart_base64 === "string" && payload.chart_base64.trim()) ? payload.chart_base64.trim() :
             "";
 
-        const items = Array.isArray(payload?.items) ? payload.items : (Array.isArray(data.items) ? data.items : []);
+        // Một số backend trả thiếu trường `type`, nhưng có `chart_base64` + `data/items`.
+        const looksLikeExcelViz =
+            topType.includes("excel_visualize") ||
+            payloadType.includes("excel_visualize") ||
+            !!chartB64;
+
+        if (!looksLikeExcelViz) return null;
+
+        const items =
+            (Array.isArray(payload?.items) ? payload.items : null) ||
+            (Array.isArray(payload?.data) ? payload.data : null) ||
+            (Array.isArray(data.items) ? data.items : null) ||
+            (Array.isArray(data.data) ? data.data : null) ||
+            [];
 
         return {
             type: payloadType || topType,
             province: payload?.province || data.province || "",
             industrial_type: payload?.industrial_type || data.industrial_type || "",
             items,
-            chart_base64: chartBase64
+            chart_base64: chartB64
         };
     }
 
