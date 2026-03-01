@@ -3420,30 +3420,59 @@ function sendMessage() {
 				}
 
 
-				// Decide whether to animate (typewriter) for the *current* live reply.
-				const normalizedForAnim = normalizeBotMessage(displayText);
+				// ✅ If server returns industrial rows in `data.data` (structured) → render table directly and skip typewriter
+				const __industrialRows = (data && Array.isArray(data.data) && data.data.length && typeof data.data[0] === "object")
+					? data.data
+					: null;
+				const __looksIndustrial = !!(__industrialRows && (
+					__industrialRows[0]["Tên"] || __industrialRows[0]["Ten"] ||
+					__industrialRows[0]["Địa chỉ"] || __industrialRows[0]["Dia chi"] ||
+					__industrialRows[0]["Loại"] || __industrialRows[0]["Loai"] ||
+					__industrialRows[0]["Giá"] || __industrialRows[0]["Gia"] ||
+					__industrialRows[0]["Diện tích"] || __industrialRows[0]["Dien tich"]
+				));
+
 				let botEl;
-				if (shouldAnimateBotText(displayText, normalizedForAnim)) {
+				if (__looksIndustrial) {
 					botEl = addBotMessage("", { messageId, question: message });
 					const bubble = botEl ? botEl.querySelector('.message-bubble') : null;
-					__uiActiveTypewriter = runTypewriter(
-						bubble,
-						String(displayText ?? ''),
-						normalizedForAnim.html,
-						() => {
-							__uiIsGenerating = false;
-							__uiActiveTypewriter = null;
-							setSendButtonMode('send');
-						}
-					);
-				} else {
-					botEl = addBotMessage(displayText, { messageId, question: message });
-					// No animation -> generation considered complete now.
+					if (bubble) {
+						const head = normalizeBotMessage(displayText).html;
+						let tableHtml = "";
+						try { tableHtml = jsonToIndustrialTableV2(__industrialRows); } catch (_) { tableHtml = ""; }
+						if (tableHtml) {
+						bubble.innerHTML = tableHtml;
+					} else {
+						bubble.innerHTML = head;
+					}
+						bubble.classList.add('wide');
+					}
 					__uiIsGenerating = false;
 					setSendButtonMode('send');
+				} else {
+					// Decide whether to animate (typewriter) for the *current* live reply.
+					const normalizedForAnim = normalizeBotMessage(displayText);
+					if (shouldAnimateBotText(displayText, normalizedForAnim)) {
+						botEl = addBotMessage("", { messageId, question: message });
+						const bubble = botEl ? botEl.querySelector('.message-bubble') : null;
+						__uiActiveTypewriter = runTypewriter(
+							bubble,
+							String(displayText ?? ''),
+							normalizedForAnim.html,
+							() => {
+								__uiIsGenerating = false;
+								__uiActiveTypewriter = null;
+								setSendButtonMode('send');
+							}
+						);
+					} else {
+						botEl = addBotMessage(displayText, { messageId, question: message });
+						// No animation -> generation considered complete now.
+						__uiIsGenerating = false;
+						setSendButtonMode('send');
+					}
 				}
-
-                // ✅ Chart cũ (excel_visualize) + chart mới (chartjs) + flowchart (mermaid)
+// ✅ Chart cũ (excel_visualize) + chart mới (chartjs) + flowchart (mermaid)
                 handleExcelVisualizeResponse(effectiveData, botEl);
                 handleChartJsResponse(effectiveData, botEl);
                 handleFlowchartResponse(effectiveData, botEl);
